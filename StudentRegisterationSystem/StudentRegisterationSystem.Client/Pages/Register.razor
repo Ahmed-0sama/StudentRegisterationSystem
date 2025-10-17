@@ -1,0 +1,164 @@
+﻿@page "/register"
+@using Shared.DTOs.Users
+@using Shared.DTOs.Department
+@using Shared.DTOs.Faculty
+@using Microsoft.AspNetCore.Components.Forms
+@inject HttpClient Http
+
+<h3>Register</h3>
+
+<EditForm Model="registerModel" OnValidSubmit="HandleRegister">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        <InputText id="username" class="form-control" @bind-Value="registerModel.UserName" />
+        <ValidationMessage For="@(() => registerModel.UserName)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="firstname" class="form-label">First Name</label>
+        <InputText id="firstname" class="form-control" @bind-Value="registerModel.FirstName" />
+        <ValidationMessage For="@(() => registerModel.FirstName)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="lastname" class="form-label">Last Name</label>
+        <InputText id="lastname" class="form-control" @bind-Value="registerModel.LastName" />
+        <ValidationMessage For="@(() => registerModel.LastName)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="registerModel.Password" />
+        <ValidationMessage For="@(() => registerModel.Password)" />
+    </div>
+
+    <!-- Faculty Dropdown -->
+    <div class="mb-3">
+        <label for="faculty" class="form-label">Faculty</label>
+<InputSelect id="faculty" class="form-control" @bind-Value="selectedFacultyId" @onchange="OnFacultyChanged">
+    <option value="">-- Select Faculty --</option>
+    @foreach (var faculty in faculties)
+    {
+        <option value="@faculty.Id">@faculty.Name</option>
+    }
+</InputSelect>
+    </div>
+
+    <!-- Department Dropdown (filtered based on Faculty) -->
+    <div class="mb-3">
+        <label for="department" class="form-label">Department</label>
+        <InputSelect id="department" class="form-control" @bind-Value="registerModel.DepartmentId">
+            <option value="">-- Select Department --</option>
+            @foreach (var department in departments)
+            {
+                <option value="@department.Id">@department.Name</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="@(() => registerModel.DepartmentId)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="sponserType" class="form-label">Sponsor Type</label>
+        <InputSelect id="sponserType" class="form-control" @bind-Value="registerModel.SponserType">
+            <option value="Self">Self</option>
+            <option value="Government">Government</option>
+            <option value="Private">Private</option>
+        </InputSelect>
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+        @if (isSubmitting)
+        {
+            <span class="spinner-border spinner-border-sm"></span>
+        }
+        else
+        {
+            <span>Register</span>
+        }
+    </button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info mt-3">@message</div>
+}
+
+@code {
+    private RegisterModel registerModel = new();
+    private List<FacultyDto> faculties = new();
+    private List<GetDepartmentDto> departments = new();
+    private Guid? selectedFacultyId;
+    private string message = string.Empty;
+    private bool isSubmitting = false;
+
+protected override async Task OnInitializedAsync()
+{
+    try
+    {
+        // Load all faculties
+        faculties = await Http.GetFromJsonAsync<List<FacultyDto>>("api/Faculties/GetAllFaculties");
+
+        // Load all departments
+        departments = await Http.GetFromJsonAsync<List<GetDepartmentDto>>("api/Departments/GetAllDepartments");
+    }
+    catch
+    {
+        message = "Failed to load faculties or departments. Please try again later.";
+    }
+}
+
+private async Task OnFacultyChanged(ChangeEventArgs e)
+{
+    if (Guid.TryParse(e.Value?.ToString(), out var facultyId))
+    {
+        selectedFacultyId = facultyId;
+
+        try
+        {
+            // Load departments for selected faculty
+            departments = await Http.GetFromJsonAsync<List<GetDepartmentDto>>(
+                $"api/Departments/GetDepartmentsByFaculty/{facultyId}");
+        }
+        catch
+        {
+            departments.Clear();
+            message = "Failed to load departments for selected faculty.";
+        }
+    }
+    else
+    {
+        departments.Clear();
+    }
+}
+
+    private async Task HandleRegister()
+    {
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(registerModel.SponserType))
+                registerModel.SponserType = "Self";
+
+            var response = await Http.PostAsJsonAsync("api/User/register", registerModel);
+            var responseText = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+                message = "Registered successfully!";
+            else
+                message = $"Registration failed: {responseText}";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

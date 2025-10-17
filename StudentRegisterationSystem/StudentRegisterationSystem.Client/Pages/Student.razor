@@ -1,0 +1,51 @@
+﻿@page "/student"
+@using Shared.DTOs.Student
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3>Student Profile</h3>
+
+@if (isLoading)
+{
+    <p>Loading student data...</p>
+}
+else if (student == null)
+{
+    <p class="text-danger">Student data not found or you are not authorized.</p>
+}
+else
+{
+    <div class="card" style="max-width: 600px; margin-top:20px;">
+        <div class="card-body">
+            <h5 class="card-title">@student.firstName @student.lastName</h5>
+            <p><strong>Department:</strong> @student.departmentName</p>
+            <p><strong>Faculty:</strong> @student.facultyName</p>
+            <p><strong>Sponsor Type:</strong> @student.sponserType</p>
+            <p><strong>GPA:</strong> @student.gpa</p>
+            <p><strong>Credits Earned:</strong> @student.creditsEarned</p>
+        </div>
+    </div>
+}
+
+@code {
+    private StudentDto student;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Make sure the JWT is added in the HttpClient default headers
+            student = await Http.GetFromJsonAsync<StudentDto>("api/student/GetStudentData");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading student data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

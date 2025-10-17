@@ -1,0 +1,108 @@
+﻿@page "/login"
+@using Shared.DTOs.Users
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Forms
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="login-container" style="max-width: 1000px; margin: 50px auto;">
+    <div class="header mb-4">
+        <img src="images/header.png" class="img-fluid w-100" alt="Login Header" />
+        <h3 class="text-center mt-3">Login to Your Account</h3>
+    </div>
+
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert alert-info mt-3">@message</div>
+    }
+
+    <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label for="registrationNumber" class="form-label">Registration Number</label>
+            <InputText id="registrationNumber" class="form-control" @bind-Value="loginModel.RegistrationNumber" />
+            <ValidationMessage For="@(() => loginModel.RegistrationNumber)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password" />
+            <ValidationMessage For="@(() => loginModel.Password)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+            @if (isSubmitting)
+            {
+                <span class="spinner-border spinner-border-sm"></span>
+                <span> Logging in...</span>
+            }
+            else
+            {
+                <span>Login</span>
+            }
+        </button>
+    </EditForm>
+</div>
+
+@code {
+    private Shared.DTOs.Users.Login loginModel = new();
+    private string message = string.Empty;
+    private bool isSubmitting = false;
+
+    private async Task HandleLogin(EditContext _)
+    {
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/user/login", loginModel);
+
+            var responseText = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    // Try to deserialize as JSON
+                    var result = System.Text.Json.JsonSerializer.Deserialize<AuthModel>(responseText,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (!string.IsNullOrEmpty(result?.Token))
+                    {
+                        await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+                        message = "Login successful!";
+                        Navigation.NavigateTo("/student");
+                    }
+                    else
+                    {
+                        // If API returned message without token
+                        message = result?.Message ?? "Login failed - No token received";
+                    }
+                }
+                catch
+                {
+                    // If not JSON, show the raw text
+                    message = responseText;
+                }
+            }
+            else
+            {
+                message = responseText;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
