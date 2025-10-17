@@ -39,6 +39,7 @@ public class JwtHandler : DelegatingHandler
 
 	protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 	{
+		// Read token from local storage
 		var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
 		if (!string.IsNullOrEmpty(token))
 		{

@@ -4,29 +4,190 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<h3>Student Profile</h3>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <h2 class="mb-4 text-primary">
+                <i class="bi bi-person-circle"></i> Student Profile
+            </h2>
 
-@if (isLoading)
-{
-    <p>Loading student data...</p>
-}
-else if (student == null)
-{
-    <p class="text-danger">Student data not found or you are not authorized.</p>
-}
-else
-{
-    <div class="card" style="max-width: 600px; margin-top:20px;">
-        <div class="card-body">
-            <h5 class="card-title">@student.firstName @student.lastName</h5>
-            <p><strong>Department:</strong> @student.departmentName</p>
-            <p><strong>Faculty:</strong> @student.facultyName</p>
-            <p><strong>Sponsor Type:</strong> @student.sponserType</p>
-            <p><strong>GPA:</strong> @student.gpa</p>
-            <p><strong>Credits Earned:</strong> @student.creditsEarned</p>
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading student data...</p>
+                </div>
+            }
+            else if (student == null)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Student data not found or you are not authorized.
+                </div>
+            }
+            else
+            {
+                <!-- Personal Information Card -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Personal Information</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <!-- Registration Number -->
+                            <div class="col-md-6 col-lg-4">
+                                <div class="info-box p-3 rounded bg-light h-100">
+                                    <div class="info-label text-muted small mb-1">
+                                        <i class="bi bi-hash"></i> Registration No
+                                    </div>
+                                    <div class="info-value fw-bold text-dark">
+                                        @student.Id
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Full Name -->
+                            <div class="col-md-6 col-lg-4">
+                                <div class="info-box p-3 rounded bg-light h-100">
+                                    <div class="info-label text-muted small mb-1">
+                                        <i class="bi bi-person"></i> Full Name
+                                    </div>
+                                    <div class="info-value fw-bold text-dark">
+                                        @student.firstName @student.lastName
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sponsor Type -->
+                            <div class="col-md-6 col-lg-4">
+                                <div class="info-box p-3 rounded bg-light h-100">
+                                    <div class="info-label text-muted small mb-1">
+                                        <i class="bi bi-wallet2"></i> Sponsor
+                                    </div>
+                                    <div class="info-value fw-bold text-dark">
+                                        @student.sponserType
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- College / Faculty -->
+                            <div class="col-md-6 col-lg-4">
+                                <div class="info-box p-3 rounded bg-light h-100">
+                                    <div class="info-label text-muted small mb-1">
+                                        <i class="bi bi-building"></i> College
+                                    </div>
+                                    <div class="info-value fw-bold text-dark">
+                                        @student.facultyName
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Department -->
+                            <div class="col-md-6 col-lg-4">
+                                <div class="info-box p-3 rounded bg-light h-100">
+                                    <div class="info-label text-muted small mb-1">
+                                        <i class="bi bi-diagram-3"></i> Department
+                                    </div>
+                                    <div class="info-value fw-bold text-dark">
+                                        @student.departmentName
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Total Credits -->
+                            <div class="col-md-6 col-lg-4">
+                                <div class="info-box p-3 rounded bg-light h-100">
+                                    <div class="info-label text-muted small mb-1">
+                                        <i class="bi bi-award"></i> Total Credits
+                                    </div>
+                                    <div class="info-value fw-bold text-success">
+                                        @student.creditsEarned
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Performance Card -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Academic Performance</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row justify-content-center">
+                            <div class="col-md-6">
+                                <div class="gpa-display text-center p-4 rounded bg-light">
+                                    <div class="text-muted mb-2">Current GPA</div>
+                                    <div class="display-4 fw-bold text-success">@student.gpa</div>
+                                    <div class="text-muted small mt-2">
+                                        Based on @student.creditsEarned credits earned
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-3 flex-wrap justify-content-center justify-content-md-start">
+                    <button class="btn btn-primary btn-lg px-4" @onclick="OnlineRegistration">
+                        <i class="bi bi-pencil-square"></i> Proceed to Online Registration
+                    </button>
+
+                    <button class="btn btn-outline-danger btn-lg px-4" @onclick="Logout">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </div>
+            }
         </div>
     </div>
-}
+</div>
+
+<style>
+    .info-box {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #e0e0e0;
+    }
+
+        .info-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+    .info-label {
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-value {
+        font-size: 1.1rem;
+    }
+
+    .gpa-display {
+        border: 2px solid #198754;
+    }
+
+    .card {
+        border-radius: 10px;
+    }
+
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+    }
+
+    .btn {
+        transition: all 0.3s;
+    }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+</style>
 
 @code {
     private StudentDto student;
@@ -36,7 +197,6 @@ else
     {
         try
         {
-            // Make sure the JWT is added in the HttpClient default headers
             student = await Http.GetFromJsonAsync<StudentDto>("api/student/GetStudentData");
         }
         catch (Exception ex)
@@ -47,5 +207,22 @@ else
         {
             isLoading = false;
         }
+    }
+
+    private void OnlineRegistration()
+    {
+        Navigation.NavigateTo("/student/online-registration");
+    }
+
+    private async Task Logout()
+    {
+        // Remove JWT from local storage
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+
+        // Optional: clear default HttpClient authorization header
+        Http.DefaultRequestHeaders.Authorization = null;
+
+        // Navigate to login page
+        Navigation.NavigateTo("/login", true);
     }
 }

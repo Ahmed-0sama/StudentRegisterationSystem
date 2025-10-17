@@ -12,6 +12,7 @@ namespace DataAccess.Entities
 	{
 		[Key]
 		public Guid Id { get; set; }=Guid.NewGuid();
+		public string FullName { get; set; }
 		//application user foreign key
 		[ForeignKey(nameof(User))]
 		public string UserId { get; set; }

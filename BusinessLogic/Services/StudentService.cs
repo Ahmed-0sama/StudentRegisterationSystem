@@ -49,6 +49,7 @@ namespace BusinessLogic.Services
 			}
 			var dto = new StudentDto
 			{
+				Id = user.UserName,
 				firstName = student.User.FirstName,
 				lastName = student.User.LastName,
 				departmentName = student.Department.Name,

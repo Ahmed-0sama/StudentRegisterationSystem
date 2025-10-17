@@ -1,0 +1,542 @@
+﻿@page "/admin/courses"
+@using Shared.DTOs.Courses
+@using Shared.DTOs.Department
+@using Shared.DTOs.Doctor
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using Shared.DTOs.Courses
+@using System.Net.Http.Json
+@using System.Text.Json
+
+<div class="container-fluid my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Course Management</h2>
+        <button class="btn btn-primary" @onclick="ShowCreateCourseModal">
+            <i class="bi bi-plus-circle"></i> Add New Course
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+            @message
+            <button type="button" class="btn-close" @onclick="() => message = string.Empty"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading courses...</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Course Name</th>
+                        <th>Department</th>
+                        <th>Credit Hours</th>
+                        <th>Assigned Doctors</th>
+                        <th style="width: 250px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (courses?.Any() == true)
+                    {
+                        @foreach (var course in courses)
+                        {
+                            <tr>
+                                <td><strong>@course.CourseName</strong></td>
+                                <td>@course.DepartmentName</td>
+                                <td>@course.CreditHours</td>
+                                <td>
+                                    @if (course.DoctorsNames?.Any() == true)
+                                    {
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach (var doctor in course.DoctorsNames)
+                                            {
+                                                <span class="badge bg-info text-dark">@doctor</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No doctors assigned</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-success" @onclick="() => ShowAssignDoctorModal(course)">
+                                            <i class="bi bi-person-plus"></i> Assign
+                                        </button>
+                                        <button class="btn btn-warning" @onclick="() => ShowRemoveDoctorModal(course)">
+                                            <i class="bi bi-person-dash"></i> Remove
+                                        </button>
+                                        <button class="btn btn-info" @onclick="() => ShowCourseDetails(course)">
+                                            <i class="bi bi-eye"></i> View
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center">No courses found.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Create Course Modal -->
+@if (showCreateModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Course</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Course Name</label>
+                        <input type="text" class="form-control" @bind="createCourseDto.CourseName" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Crourse Code</label>
+                        <input type="text" class="form-control" @bind="createCourseDto.CourseCode" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Credit Hours</label>
+                        <input type="number" class="form-control" @bind="createCourseDto.CreditHours" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <select class="form-select" @bind="createCourseDto.DepartmentId">
+                            <option value="">-- Select Department --</option>
+                            @if (departments?.Any() == true)
+                            {
+                                @foreach (var dept in departments)
+                                {
+                                    <option value="@dept.Id">@dept.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals" disabled="@isSubmitting">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="CreateCourse" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Create Course
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Assign Doctor Modal -->
+@if (showAssignDoctorModal && selectedCourse != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Assign Doctor to Course</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="mb-3">Course: <strong>@selectedCourse.CourseName</strong></h6>
+                    <div class="mb-3">
+                        <label class="form-label">Select Doctor</label>
+                        <select class="form-select" @bind="assignDoctorDto.DoctorId">
+                            <option value="">-- Select Doctor --</option>
+                            @if (doctors?.Any() == true)
+                            {
+                                @foreach (var doctor in doctors)
+                                {
+                                    <option value="@doctor.Id">@doctor.FullName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Academic Year</label>
+                        <input type="text" class="form-control" placeholder="e.g., 2024-2025" @bind="assignDoctorDto.AcademicYear" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals" disabled="@isSubmitting">Cancel</button>
+                    <button type="button" class="btn btn-success" @onclick="AssignDoctor" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Assign Doctor
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Remove Doctor Modal -->
+@if (showRemoveDoctorModal && selectedCourse != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">Remove Doctor from Course</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="mb-3">Course: <strong>@selectedCourse.CourseName</strong></h6>
+                    @if (selectedCourse.DoctorsNames?.Any() == true)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Select Doctor to Remove</label>
+                            <select class="form-select" @bind="selectedDoctorIdToRemove">
+                                <option value="">-- Select Doctor --</option>
+                                @if (doctors?.Any() == true)
+                                {
+                                    @foreach (var doctor in doctors.Where(d => selectedCourse.DoctorsNames.Contains(d.FullName)))
+                                    {
+                                        <option value="@doctor.Id">@doctor.FullName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">No doctors assigned to this course.</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals" disabled="@isSubmitting">Cancel</button>
+                    <button type="button" class="btn btn-warning" @onclick="RemoveDoctor"
+                            disabled="@(isSubmitting || string.IsNullOrEmpty(selectedDoctorIdToRemove))">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Remove Doctor
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Course Details Modal -->
+@if (showDetailsModal && selectedCourse != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">Course Details</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Course Name:</strong> @selectedCourse.CourseName</p>
+                            <p><strong>Department:</strong> @selectedCourse.DepartmentName</p>
+                            <p><strong>Credit Hours:</strong> @selectedCourse.CreditHours</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Assigned Doctors:</strong></p>
+                            @if (selectedCourse.DoctorsNames?.Any() == true)
+                            {
+                                <ul class="list-group">
+                                    @foreach (var doctor in selectedCourse.DoctorsNames)
+                                    {
+                                        <li class="list-group-item">@doctor</li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <p class="text-muted">No doctors assigned</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CourseDto> courses = new();
+    private List<GetDepartmentDto> departments = new();
+    private List<DoctorDto> doctors = new();
+    private CourseDto? selectedCourse;
+    private CreateCourseDto createCourseDto = new();
+    private AssignDoctorDto assignDoctorDto = new();
+    private string selectedDoctorIdToRemove = string.Empty;
+
+    private string message = string.Empty;
+    private bool isError = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool showCreateModal = false;
+    private bool showAssignDoctorModal = false;
+    private bool showRemoveDoctorModal = false;
+    private bool showDetailsModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            await Task.WhenAll(
+                LoadCourses(),
+                LoadDepartments(),
+                LoadDoctors()
+            );
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadCourses()
+    {
+        try
+        {
+            courses = await Http.GetFromJsonAsync<List<CourseDto>>("api/Course/GetAllCourses") ?? new();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error loading courses: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<GetDepartmentDto>>("api/departments/GetAllDepartments");
+            departments = response ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading departments: {ex.Message}");
+            departments = new();
+        }
+    }
+
+    private async Task LoadDoctors()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<DoctorDto>>("api/doctors");
+            doctors = response ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading doctors: {ex.Message}");
+            doctors = new();
+        }
+    }
+
+
+    private void ShowCreateCourseModal()
+    {
+        createCourseDto = new CreateCourseDto();
+        showCreateModal = true;
+    }
+
+    private void ShowAssignDoctorModal(CourseDto course)
+    {
+        selectedCourse = course;
+        assignDoctorDto = new AssignDoctorDto { CourseId = course.id };
+        showAssignDoctorModal = true;
+    }
+
+    private void ShowRemoveDoctorModal(CourseDto course)
+    {
+        selectedCourse = course;
+        selectedDoctorIdToRemove = string.Empty;
+        showRemoveDoctorModal = true;
+    }
+
+    private void ShowCourseDetails(CourseDto course)
+    {
+        selectedCourse = course;
+        showDetailsModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showCreateModal = false;
+        showAssignDoctorModal = false;
+        showRemoveDoctorModal = false;
+        showDetailsModal = false;
+        selectedCourse = null;
+        createCourseDto = new();
+        assignDoctorDto = new();
+        selectedDoctorIdToRemove = string.Empty;
+    }
+
+    private async Task CreateCourse()
+    {
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.PostAsJsonAsync("api/course/CreateCourse", createCourseDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var createdCourse = await response.Content.ReadFromJsonAsync<CourseDto>();
+                message = "Course created successfully!";
+                isError = false;
+
+                CloseModals();
+                await LoadCourses();
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                message = $"Failed to create course. Server said: {errorText}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task AssignDoctor()
+    {
+        if (selectedCourse == null || assignDoctorDto.DoctorId == Guid.Empty)
+            return;
+
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            assignDoctorDto.CourseId = selectedCourse.id;
+            var response = await Http.PostAsJsonAsync("api/admincourses/assign-doctor", assignDoctorDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Doctor assigned successfully!";
+                isError = false;
+                CloseModals();
+                await LoadCourses();
+            }
+            else
+            {
+                // Optional: read server message if you return one
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                message = !string.IsNullOrWhiteSpace(errorMsg)
+                    ? errorMsg
+                    : "Failed to assign doctor.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task RemoveDoctor()
+    {
+        if (selectedCourse == null || string.IsNullOrEmpty(selectedDoctorIdToRemove))
+            return;
+
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.DeleteAsync(
+                $"api/admincourses/remove-doctor?courseId={selectedCourse.id}&doctorId={selectedDoctorIdToRemove}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Doctor removed successfully!";
+                isError = false;
+                CloseModals();
+                await LoadCourses();
+            }
+            else
+            {
+                // Try to extract message from backend (if it returns plain text or JSON)
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                message = !string.IsNullOrWhiteSpace(errorMsg)
+                    ? errorMsg
+                    : "Failed to remove doctor.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+        
+}

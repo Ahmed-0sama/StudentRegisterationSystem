@@ -1,0 +1,485 @@
+﻿@page "/admin/registration-management"
+@using Shared.DTOs.Registeration
+@using System.Globalization
+@using System.Text.Json
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-12">
+            <h2 class="mb-4 text-primary">
+                <i class="bi bi-calendar-event"></i> Registration Period Management
+            </h2>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading registration periods...</p>
+                </div>
+            }
+            else
+            {
+                <!-- Error Message -->
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>Error!</strong> @errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                    </div>
+                }
+
+                <!-- Success Message -->
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <strong>Success!</strong> @successMessage
+                        <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                    </div>
+                }
+
+                <!-- Active Period Card -->
+                @if (activePeriod != null)
+                {
+                    <div class="card shadow-sm border-0 mb-4 border-left-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-check-circle"></i> Active Registration Period
+                            </h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="info-box p-3 rounded bg-light h-100">
+                                        <div class="info-label text-muted small mb-1">
+                                            <i class="bi bi-tag"></i> Semester Name
+                                        </div>
+                                        <div class="info-value fw-bold text-dark">
+                                            @activePeriod.SemesterName
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-box p-3 rounded bg-light h-100">
+                                        <div class="info-label text-muted small mb-1">
+                                            <i class="bi bi-calendar-check"></i> Start Date
+                                        </div>
+                                        <div class="info-value fw-bold text-dark">
+                                            @activePeriod.StartDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-box p-3 rounded bg-light h-100">
+                                        <div class="info-label text-muted small mb-1">
+                                            <i class="bi bi-calendar-x"></i> End Date
+                                        </div>
+                                        <div class="info-value fw-bold text-dark">
+                                            @activePeriod.EndDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Create New Period Button -->
+                <div class="mb-4">
+                    <button class="btn btn-primary btn-lg px-4" @onclick="ShowCreateForm">
+                        <i class="bi bi-plus-circle"></i> Create New Registration Period
+                    </button>
+                </div>
+
+                <!-- Create/Edit Form -->
+                @if (showForm)
+                {
+                    <div class="card shadow-sm border-0 mb-4 border-left-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-pencil-square"></i> @(isEditing ? "Edit Registration Period" : "Create Registration Period")
+                            </h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">Semester Name</label>
+                                    <input type="text" class="form-control form-control-lg"
+                                           @bind="newPeriod.SemesterName"
+                                           placeholder="e.g., Fall 2024, Spring 2025" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Start Date</label>
+                                    <input type="date" class="form-control form-control-lg"
+                                           @bind="startDate" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">End Date</label>
+                                    <input type="date" class="form-control form-control-lg"
+                                           @bind="endDate" />
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3 mt-4">
+                                <button class="btn btn-success btn-lg px-5" @onclick="SavePeriod" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    <i class="bi bi-check-circle"></i> @(isEditing ? "Update" : "Create")
+                                </button>
+                                <button class="btn btn-outline-secondary btn-lg px-5" @onclick="CancelForm">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Registration Periods Table -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-list-ul"></i> All Registration Periods (@periods.Count)
+                        </h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="bi bi-tag"></i> Semester</th>
+                                    <th><i class="bi bi-calendar-check"></i> Start Date</th>
+                                    <th><i class="bi bi-calendar-x"></i> End Date</th>
+                                    <th><i class="bi bi-lightbulb"></i> Status</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (periods.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            <i class="bi bi-inbox"></i> No registration periods found.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var period in periods)
+                                    {
+                                        <tr>
+                                            <td class="fw-bold">@period.SemesterName</td>
+                                            <td>@period.StartDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)</td>
+                                            <td>@period.EndDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)</td>
+                                            <td>
+                                                @if (period.IsActive)
+                                                {
+                                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Inactive</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => EditPeriod(period)" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-warning" @onclick="() => TogglePeriodStatus(period.Id)" title="Toggle Status" disabled="@isSaving">
+                                                    <i class="bi bi-toggle-on"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .info-box {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #e0e0e0;
+    }
+
+        .info-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+    .info-label {
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+    }
+
+    .info-value {
+        font-size: 1.1rem;
+    }
+
+    .card {
+        border-radius: 10px;
+    }
+
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+    }
+
+    .border-left-success {
+        border-left: 4px solid #198754 !important;
+    }
+
+    .border-left-primary {
+        border-left: 4px solid #0d6efd !important;
+    }
+
+    .btn {
+        transition: all 0.3s;
+    }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+
+@code {
+    private List<RegisterationPeriodDto> periods = new();
+    private RegisterationPeriodDto activePeriod;
+    private CreateRegisterationPeriodDto newPeriod = new();
+    private DateTime? startDate;
+    private DateTime? endDate;
+
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isEditing = false;
+    private bool isSaving = false;
+
+    private string errorMessage;
+    private string successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            // --- Fetch Active Period ---
+            var activeResponse = await Http.GetAsync("api/registerationmangement/GetActive");
+            if (activeResponse.IsSuccessStatusCode)
+            {
+                activePeriod = await activeResponse.Content.ReadFromJsonAsync<RegisterationPeriodDto>();
+            }
+            else if (activeResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                activePeriod = null; // No active period
+            }
+            else
+            {
+                var content = await activeResponse.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to load active period: {content}";
+            }
+
+            // --- Fetch All Periods ---
+            var periodsResponse = await Http.GetAsync("api/RegisterationMangement/periods");
+            var contentt = await periodsResponse.Content.ReadAsStringAsync();
+            if (periodsResponse.IsSuccessStatusCode)
+            {
+                periods = await periodsResponse.Content.ReadFromJsonAsync<List<RegisterationPeriodDto>>();
+            }
+            else
+            {
+                var content = await periodsResponse.Content.ReadAsStringAsync();
+                periods = new List<RegisterationPeriodDto>();
+                errorMessage = $"Failed to load periods: {content}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        isEditing = false;
+        showForm = true;
+        newPeriod = new CreateRegisterationPeriodDto();
+        startDate = null;
+        endDate = null;
+    }
+
+    private void EditPeriod(RegisterationPeriodDto period)
+    {
+        isEditing = true;
+        showForm = true;
+        newPeriod = new CreateRegisterationPeriodDto
+        {
+            SemesterName = period.SemesterName
+        };
+        startDate = period.StartDate;
+        endDate = period.EndDate;
+    }
+
+    private Guid editingPeriodId; // store the ID when editing
+
+    private async Task SavePeriod()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(newPeriod.SemesterName))
+        {
+            errorMessage = "Semester name is required.";
+            return;
+        }
+
+        if (startDate == null || endDate == null)
+        {
+            errorMessage = "Both start and end dates are required.";
+            return;
+        }
+
+        if (startDate >= endDate)
+        {
+            errorMessage = "Start date must be before end date.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            HttpResponseMessage response;
+
+            if (isEditing)
+            {
+                // Build DTO for updating with the stored ID
+                var updateDto = new RegisterationPeriodDto
+                {
+                    Id = editingPeriodId,
+                    SemesterName = newPeriod.SemesterName,
+                    StartDate = startDate.Value,
+                    EndDate = endDate.Value,
+                    IsActive = activePeriod?.IsActive ?? false
+                };
+
+                response = await Http.PutAsJsonAsync(
+                    $"api/RegisterationMangement/UpdatePeriod/{editingPeriodId}",
+                    updateDto
+                );
+            }
+            else
+            {
+                // Create DTO for new period
+                var createDto = new CreateRegisterationPeriodDto
+                {
+                    SemesterName = newPeriod.SemesterName,
+                    StartDate = startDate.Value,
+                    EndDate = endDate.Value
+                };
+
+                response = await Http.PostAsJsonAsync(
+                    "api/RegisterationMangement/CreateRegistrationPeriod",
+                    createDto
+                );
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = isEditing ? "Period updated successfully!" : "Period created successfully!";
+                CancelForm();
+                await LoadData();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                if (errorContent != null && errorContent.ContainsKey("message"))
+                {
+                    errorMessage = errorContent["message"];
+                }
+                else
+                {
+                    errorMessage = "Failed to save period.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            Console.WriteLine($"Error: {ex}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task TogglePeriodStatus(Guid periodId)
+    {
+        errorMessage = null;
+        successMessage = null;
+        isSaving = true;
+
+        try
+        {
+            var response = await Http.PutAsync($"api/registerationmangement/periods/{periodId}/toggle", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = "Period status toggled successfully!";
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Failed to toggle period status.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            Console.WriteLine($"Error: {ex}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        isEditing = false;
+        newPeriod = new();
+		startDate = null;
+        endDate = null;
+        errorMessage = null;
+    }
+}

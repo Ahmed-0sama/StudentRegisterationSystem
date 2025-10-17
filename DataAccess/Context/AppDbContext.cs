@@ -18,24 +18,25 @@ namespace DataAccess.Context
 		public DbSet<Doctor> Doctors { get; set; }
 		public DbSet<Course> Courses { get; set; }
 		public DbSet<Student> Students { get; set; }
-		public DbSet<StudentCourse> StudentCourses { get; set; }
+		public DbSet<CourseRegistration> CourseRegistration { get; set; }
 		public DbSet<DoctorCourse> DoctorCourses { get; set; }
+		public DbSet<RegistrationPeriod> RegistrationPeriods { get; set; }
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			base.OnModelCreating(modelBuilder);
 
-			modelBuilder.Entity<StudentCourse>()
+			modelBuilder.Entity<CourseRegistration>()
 				.HasKey(sc => new { sc.StudentId, sc.CourseId });
 
-			modelBuilder.Entity<StudentCourse>()
+			modelBuilder.Entity<CourseRegistration>()
 				.HasOne(sc => sc.Student)
-				.WithMany(s => s.StudentCourses)
+				.WithMany(s => s.CourseRegistrations)
 				.HasForeignKey(sc => sc.StudentId)
 				.OnDelete(DeleteBehavior.Restrict);
 
-			modelBuilder.Entity<StudentCourse>()
+			modelBuilder.Entity<CourseRegistration>()
 				.HasOne(sc => sc.Course)
-				.WithMany(c => c.StudentCourses)
+				.WithMany(c => c.CourseRegistration)
 				.HasForeignKey(sc => sc.CourseId)
 				.OnDelete(DeleteBehavior.Restrict);
 

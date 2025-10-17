@@ -66,6 +66,9 @@ builder.Services.AddScoped<IAuthServices, AuthServices>();
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IFacultyService, FacultyService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IRegistrationService, RegisterationService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<IDoctorService, DoctorService>();
 
 // Add CORS if needed
 builder.Services.AddCors(options =>

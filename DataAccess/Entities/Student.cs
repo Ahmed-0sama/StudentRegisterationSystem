@@ -28,8 +28,7 @@ namespace DataAccess.Entities
 		[ForeignKey(nameof(Department))]
 		public Guid DepartmentId { get; set; }
 		public Department Department { get; set; }
-
-		public ICollection<StudentCourse> StudentCourses { get; set; }
+		public ICollection<CourseRegistration> CourseRegistrations { get; set; }
 	}
 		
 }

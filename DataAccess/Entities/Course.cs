@@ -15,10 +15,11 @@ namespace DataAccess.Entities
 		[Required, StringLength(100)]
 		public string CourseName { get; set; }
 		public int CreditHours { get; set; }
+		public string CourseCode { get; set; }
 		[ForeignKey("Department")]
 		public Guid DepartmentId { get; set; }
 		public Department Department { get; set; }
-		public ICollection<StudentCourse> StudentCourses { get; set; }
+		public ICollection<CourseRegistration> CourseRegistration { get; set; }
 		public ICollection<DoctorCourse> DoctorCourses { get; set; }
 	}
 }
