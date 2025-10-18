@@ -134,6 +134,52 @@ namespace BusinessLogic.Services
 			await _context.SaveChangesAsync();
 			return true;
 		}
+		public async Task<bool> AddPrerequisite(AddPrerequisiteDto dto)
+		{
+			var course = await _context.Courses.FindAsync(dto.CourseId);
+			if (course == null)
+				throw new Exception("Course not found");
+
+			var prerequisiteCourse = await _context.Courses.FindAsync(dto.PrerequisiteCourseId);
+			if (prerequisiteCourse == null)
+				throw new Exception("Prerequisite course not found");
+
+			if (dto.CourseId == dto.PrerequisiteCourseId)
+				throw new Exception("A course cannot be its own prerequisite");
+
+			var existingPrerequisite = await _context.CoursePrerequisites
+				.FirstOrDefaultAsync(cp => cp.CourseId == dto.CourseId
+					&& cp.PrerequisiteCourseId == dto.PrerequisiteCourseId);
+
+			if (existingPrerequisite != null)
+				throw new Exception("This prerequisite already exists");
+
+			var prerequisite = new CoursePrerequisite
+			{
+				CourseId = dto.CourseId,
+				PrerequisiteCourseId = dto.PrerequisiteCourseId
+			};
+
+			_context.CoursePrerequisites.Add(prerequisite);
+			await _context.SaveChangesAsync();
+
+			return true;
+		}
+
+		public async Task<bool> RemovePrerequisite(Guid courseId, Guid prerequisiteCourseId)
+		{
+			var prerequisite = await _context.CoursePrerequisites
+				.FirstOrDefaultAsync(cp => cp.CourseId == courseId
+					&& cp.PrerequisiteCourseId == prerequisiteCourseId);
+
+			if (prerequisite == null)
+				throw new Exception("Prerequisite not found");
+
+			_context.CoursePrerequisites.Remove(prerequisite);
+			await _context.SaveChangesAsync();
+
+			return true;
+		}
 		public async Task<CourseDto> CreateCourse(CreateCourseDto dto)
 		{
 			var department = await _context.Departments.FindAsync(dto.DepartmentId);
@@ -147,21 +193,58 @@ namespace BusinessLogic.Services
 				CreditHours = dto.CreditHours,
 				DepartmentId = dto.DepartmentId
 			};
-				_context.Courses.Add(course);
-				await _context.SaveChangesAsync();
+			_context.Courses.Add(course);
+			await _context.SaveChangesAsync();
 
 
 			return new CourseDto
 			{
 				id = course.Id,
 				CourseName = course.CourseName,
-				CourseCode= course.CourseCode,
+				CourseCode = course.CourseCode,
 				CreditHours = course.CreditHours,
 				DepartmentName = department.Name,
 				DoctorsNames = new List<string>()
 			};
 		}
+		public async Task<List<CourseDto>> GetCompletedCoursesForStudent(string userId)
+		{
+			var student = await _context.Students
+				.Include(s => s.Department)
+				.Include(s => s.CourseRegistrations)
+				.FirstOrDefaultAsync(s => s.UserId == userId);
 
+			if (student == null)
+				return new List<CourseDto>();
+
+			// Get all courses where student has a grade
+			var completedCourses = await _context.CourseRegistration
+				.Where(cr => cr.StudentId == student.Id && !string.IsNullOrEmpty(cr.Grade))
+				.Include(cr => cr.Course)
+					.ThenInclude(c => c.Department)
+				.Include(cr => cr.Course)
+					.ThenInclude(c => c.DoctorCourses)
+						.ThenInclude(dc => dc.Doctor)
+						.ThenInclude(d => d.User)
+				.ToListAsync();
+
+			var result = completedCourses.Select(cc => new CourseDto
+			{
+				id = cc.Course.Id,
+				CourseName = cc.Course.CourseName,
+				CourseCode = cc.Course.CourseCode,
+				CreditHours = cc.Course.CreditHours,
+				DepartmentId = cc.Course.DepartmentId,
+				DepartmentName = cc.Course.Department?.Name,
+				DoctorsNames = cc.Course.DoctorCourses?
+					.Where(dc => dc.Doctor?.User != null)
+					.Select(dc => dc.Doctor.User.FirstName + " " + dc.Doctor.User.LastName)
+					.ToList() ?? new List<string>(),
+				grade = cc.Grade
+			}).ToList();
+
+			return result;
+		}
 		public async Task<bool> AssignDoctorToCourse(AssignDoctorDto dto)
 		{
 			var course = await _context.Courses.FindAsync(dto.CourseId);
@@ -208,20 +291,36 @@ namespace BusinessLogic.Services
 
 		public async Task<List<CourseDto>> GetAllCourses()
 		{
-			return await _context.Courses
+			var courses = await _context.Courses
 				.Include(c => c.Department)
 				.Include(c => c.DoctorCourses)
 					.ThenInclude(dc => dc.Doctor)
 					.ThenInclude(d => d.User)
-				.Select(c => new CourseDto
-				{
-					id = c.Id,
-					CourseName = c.CourseName,
-					CreditHours = c.CreditHours,
-					DepartmentName = c.Department.Name,
-					DoctorsNames = c.DoctorCourses.Select(dc => dc.Doctor.User.FirstName).ToList()
-				})
+				.Include(c => c.PrerequisiteFor)
+					.ThenInclude(p => p.PrerequisiteCourse)
 				.ToListAsync();
+
+			return courses.Select(c => new CourseDto
+			{
+				id = c.Id,
+				CourseName = c.CourseName,
+				CourseCode = c.CourseCode,
+				CreditHours = c.CreditHours,
+				DepartmentId = c.DepartmentId,
+				DepartmentName = c.Department != null ? c.Department.Name : "N/A",
+				DoctorsNames = c.DoctorCourses != null
+					? c.DoctorCourses
+						.Where(dc => dc.Doctor?.User != null)
+						.Select(dc => dc.Doctor.User.FirstName + " " + dc.Doctor.User.LastName)
+						.ToList()
+					: new List<string>(),
+				Prerequisites = c.PrerequisiteFor.Select(p => new PrerequisiteDto
+				{
+					PrerequisiteCourseId = p.PrerequisiteCourse.Id,
+					PrerequisiteCourseName = p.PrerequisiteCourse.CourseName,
+					PrerequisiteCourseCode = p.PrerequisiteCourse.CourseCode
+				}).ToList()
+			}).ToList();
 		}
 
 		public async Task<CourseDto> GetCourseById(Guid courseId)

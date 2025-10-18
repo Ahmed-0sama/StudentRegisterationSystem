@@ -126,5 +126,53 @@ namespace StudentRegisterationSystem.Controllers
 			var courses = await _courseService.GetCoursesByDepartment(department);
 			return Ok(new { success = true, data = courses });
 		}
+		[HttpPost("AddPrerequisite")]
+		public async Task<IActionResult> AddPrerequisite([FromBody] AddPrerequisiteDto dto)
+		{
+			if (dto == null)
+				return BadRequest(new { success = false, message = "Prerequisite data is required" });
+
+			try
+			{
+				await _courseService.AddPrerequisite(dto);
+				return Ok(new { success = true, message = "Prerequisite added successfully" });
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(new { success = false, message = ex.Message });
+			}
+		}
+
+		[HttpDelete("RemovePrerequisite")]
+		public async Task<IActionResult> RemovePrerequisite([FromQuery] Guid courseId, [FromQuery] Guid prerequisiteCourseId)
+		{
+			try
+			{
+				await _courseService.RemovePrerequisite(courseId, prerequisiteCourseId);
+				return Ok(new { success = true, message = "Prerequisite removed successfully" });
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(new { success = false, message = ex.Message });
+			}
+		}
+		[HttpGet("CompletedCourses")]
+		[Authorize]
+		public async Task<IActionResult> GetCompletedCourses()
+		{
+			try
+			{
+				var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+				if (string.IsNullOrEmpty(userId))
+					return Unauthorized(new { success = false, message = "User ID not found" });
+
+				var courses = await _courseService.GetCompletedCoursesForStudent(userId);
+				return Ok(new { success = true, data = courses });
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(new { success = false, message = ex.Message });
+			}
+		}
 	}
 }

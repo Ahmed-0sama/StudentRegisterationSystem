@@ -1,5 +1,489 @@
-﻿<h3>StudentCourses</h3>
+﻿@page "/student/register-classes"
+@using Shared.DTOs.Classes
+@using Shared.DTOs.Student
+@using Shared.DTOs.Registeration
+@inject HttpClient Http
+@inject IJSRuntime JS
 
+<div class="container my-4">
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-3">
+                <i class="bi bi-journal-bookmark"></i> Class Registration
+            </h2>
+            <p class="text-muted">Select classes to register for the current semester</p>
+        </div>
+    </div>
+
+    <!-- Student Information Card -->
+    @if (studentInfo != null)
+    {
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-badge"></i> Student Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong><i class="bi bi-person"></i> Name:</strong>
+                        <p class="mb-2">@studentInfo.firstName</p>
+                    </div>
+                    <div class="col-md-3">
+                        <strong><i class="bi bi-building"></i> Department:</strong>
+                        <p class="mb-2">@studentInfo.departmentName</p>
+                    </div>
+                    <div class="col-md-3">
+                        <strong><i class="bi bi-mortarboard"></i> Faculty:</strong>
+                        <p class="mb-2">@studentInfo.facultyName</p>
+                    </div>
+                    <div class="col-md-3">
+                        <strong><i class="bi bi-award"></i> GPA:</strong>
+                        <p class="mb-2">
+                            <span class="badge @GetGpaBadgeClass(studentInfo.gpa) fs-6">
+                                @studentInfo.gpa.ToString("F2")
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Message -->
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+            @message
+            <button type="button" class="btn-close" @onclick="() => message = string.Empty"></button>
+        </div>
+    }
+
+    <!-- Loading -->
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading available classes...</p>
+        </div>
+    }
+    else
+    {
+        <!-- No active registration -->
+        @if (activeRegistrationPeriod == null)
+        {
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>No Active Registration Period</strong>
+                <p class="mb-0">There is currently no active registration period. Please check back later.</p>
+            </div>
+        }
+        else
+        {
+            <!-- Active registration period info -->
+            <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Active Registration Period</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4"><strong>Semester:</strong> @activeRegistrationPeriod.SemesterName</div>
+                        <div class="col-md-4"><strong>Start Date:</strong> @activeRegistrationPeriod.StartDate.ToShortDateString()</div>
+                        <div class="col-md-4"><strong>End Date:</strong> @activeRegistrationPeriod.EndDate.ToShortDateString()</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available classes -->
+            @if (availableClasses?.Any() == true)
+            {
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Available Classes (@availableClasses.Count)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @foreach (var cls in availableClasses)
+                            {
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card h-100 shadow-sm @(selectedClasses.Contains(cls.ClassId) ? "border-success" : "")">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-primary">
+                                                @cls.CourseName
+                                                <span class="badge bg-secondary ms-2">@cls.ClassCode</span>
+                                            </h6>
+                                            <small class="text-muted d-block mb-1"><i class="bi bi-person"></i> @cls.DoctorName</small>
+                                            <small class="text-muted d-block mb-1"><i class="bi bi-geo-alt"></i> @cls.Location</small>
+                                            <span class="badge bg-info me-1"><i class="bi bi-people"></i> @cls.AvailableSeats/@cls.MaxCapacity seats</span>
+
+                                            @if (cls.Schedules?.Any() == true)
+                                            {
+                                                <div class="mt-2">
+                                                    <small class="text-muted d-block mb-1"><i class="bi bi-clock"></i> Schedule:</small>
+                                                    @foreach (var schedule in cls.Schedules)
+                                                    {
+                                                        <span class="badge bg-light text-dark me-1 mb-1">
+                                                            @schedule.DayOfWeek @schedule.StartTime.ToString(@"hh\:mm") - @schedule.EndTime.ToString(@"hh\:mm")
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="card-footer bg-white">
+                                            @if (selectedClasses.Contains(cls.ClassId))
+                                            {
+                                                <button class="btn btn-outline-danger btn-sm w-100" @onclick="() => DeselectClass(cls.ClassId)">
+                                                    <i class="bi bi-dash-circle"></i> Remove
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-success btn-sm w-100" @onclick="() => SelectClass(cls.ClassId)">
+                                                    <i class="bi bi-plus-circle"></i> Select Class
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> <strong>No Available Classes</strong>
+                    <p class="mb-0">You have either registered for all available classes or there are no classes available in your department.</p>
+                </div>
+            }
+
+            <!-- Selected classes summary -->
+            @if (selectedClasses.Any())
+            {
+                <div class="card mt-4 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Selected Classes (@selectedClasses.Count)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            @foreach (var classId in selectedClasses)
+                            {
+                                var cls = availableClasses.FirstOrDefault(c => c.ClassId == classId);
+                                if (cls != null)
+                                {
+                                    <div class="col-md-6 mb-2">
+                                        <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded">
+                                            <span><strong>@cls.CourseName</strong> <small class="text-muted">(@cls.ClassCode)</small></span>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeselectClass(classId)"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>Selected Classes:</strong>
+                                <span class="badge bg-primary fs-6">@selectedClasses.Count</span>
+                            </div>
+
+                            <div>
+                                <button class="btn btn-secondary me-2" @onclick="ClearSelection"><i class="bi bi-x-circle"></i> Clear All</button>
+                                <button class="btn btn-success" @onclick="RegisterSelectedClasses" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    <i class="bi bi-check-circle"></i> Register Classes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Registered classes -->
+            @if (registeredClasses.Any())
+            {
+                <div class="card mt-4 border-warning">
+                    <div class="card-header bg-warning text-white">
+                        <h5 class="mb-0"><i class="bi bi-bookmark-check"></i> Your Registered Classes (@registeredClasses.Count)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @foreach (var cls in registeredClasses)
+                            {
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body pb-2">
+                                            <h6 class="card-title">@cls.CourseName <span class="badge bg-secondary">@cls.ClassCode</span></h6>
+                                            <small class="text-muted d-block"><i class="bi bi-person"></i> @cls.DoctorName</small>
+                                            @if (!string.IsNullOrEmpty(cls.Grade))
+                                            {
+                                                <small class="text-muted d-block"><i class="bi bi-award"></i> Grade: @cls.Grade</small>
+                                            }
+                                        </div>
+                                        <div class="card-footer bg-white">
+                                            <button class="btn btn-sm btn-danger w-100" @onclick="() => DropClass(cls.RegistrationId)">
+                                                <i class="bi bi-trash"></i> Drop Class
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
 @code {
+    private List<AvailableClassDto> availableClasses = new();
+    private RegisterationPeriodDto activeRegistrationPeriod;
+    private List<Guid> selectedClasses = new();
+    private string message = string.Empty;
+    private StudentDto studentInfo;
+    private bool isError = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private List<RegisteredClassDto> registeredClasses = new();
 
+    public class ApiResponse<T>
+    {
+        public bool Success { get; set; }
+        public T Data { get; set; }
+        public string Message { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            await Task.WhenAll(
+                LoadAvailableClasses(),
+                LoadActiveRegistrationPeriod(),
+                LoadRegisteredClasses(),
+                LoadStudentInfo()
+            );
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Error loading data: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadAvailableClasses()
+    {
+        try
+        {
+            // Your endpoint returns List<AvailableClassDto> directly
+            availableClasses = await Http.GetFromJsonAsync<List<AvailableClassDto>>("api/Class/available") ?? new List<AvailableClassDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading available classes: {ex.Message}");
+            availableClasses = new List<AvailableClassDto>();
+        }
+    }
+
+    private async Task LoadActiveRegistrationPeriod()
+    {
+        try
+        {
+            // Direct deserialization since your API returns the DTO directly
+            activeRegistrationPeriod = await Http.GetFromJsonAsync<RegisterationPeriodDto>("api/RegisterationMangement/GetActive");
+
+            if (activeRegistrationPeriod != null)
+            {
+                Console.WriteLine($"Loaded registration period: {activeRegistrationPeriod.SemesterName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading registration period: {ex.Message}");
+            activeRegistrationPeriod = null;
+        }
+    }
+
+    private async Task LoadRegisteredClasses()
+    {
+        try
+        {
+            // Your endpoint is "my-classes" not "registered"
+            registeredClasses = await Http.GetFromJsonAsync<List<RegisteredClassDto>>("api/Class/my-classes") ?? new List<RegisteredClassDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading registered classes: {ex.Message}");
+            registeredClasses = new List<RegisteredClassDto>();
+        }
+    }
+
+    private async Task LoadStudentInfo()
+    {
+        try
+        {
+            // Your endpoint is "GetStudentData" not "info"
+            studentInfo = await Http.GetFromJsonAsync<StudentDto>("api/Student/GetStudentData");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading student info: {ex.Message}");
+        }
+    }
+
+    private void SelectClass(Guid classId)
+    {
+        if (!selectedClasses.Contains(classId))
+        {
+            selectedClasses.Add(classId);
+        }
+    }
+
+    private void DeselectClass(Guid classId)
+    {
+        selectedClasses.Remove(classId);
+    }
+
+    private void ClearSelection()
+    {
+        selectedClasses.Clear();
+    }
+
+    private async Task RegisterSelectedClasses()
+    {
+        if (!selectedClasses.Any())
+        {
+            ShowMessage("Please select at least one class", true);
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            // Get active registration period ID
+            if (activeRegistrationPeriod == null)
+            {
+                ShowMessage("No active registration period", true);
+                isSubmitting = false;
+                return;
+            }
+
+            // Register each class individually since your API expects RegisterToClassDto
+            int successCount = 0;
+            int failCount = 0;
+            List<string> errors = new List<string>();
+
+            foreach (var classId in selectedClasses.ToList())
+            {
+                try
+                {
+                    var dto = new RegisterToClassDto
+                    {
+                        ClassId = classId,
+                        RegistrationPeriodId = activeRegistrationPeriod.Id
+                    };
+
+                    var response = await Http.PostAsJsonAsync("api/Class/register", dto);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        successCount++;
+                    }
+                    else
+                    {
+                        failCount++;
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        errors.Add(errorContent);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    errors.Add(ex.Message);
+                }
+            }
+
+            if (successCount > 0)
+            {
+                ShowMessage($"Successfully registered for {successCount} class(es)", false);
+                selectedClasses.Clear();
+                await Task.WhenAll(LoadAvailableClasses(), LoadRegisteredClasses());
+            }
+
+            if (failCount > 0)
+            {
+                ShowMessage($"Failed to register for {failCount} class(es). Check console for details.", true);
+                foreach (var error in errors)
+                {
+                    Console.WriteLine($"Registration error: {error}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"An error occurred: {ex.Message}", true);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task DropClass(Guid registrationId)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Are you sure you want to drop this class?"))
+            return;
+
+        try
+        {
+            // Your endpoint is POST drop/{registrationId}, not DELETE
+            var response = await Http.PostAsync($"api/Class/drop/{registrationId}", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ShowMessage("Class dropped successfully", false);
+                await Task.WhenAll(LoadAvailableClasses(), LoadRegisteredClasses());
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                ShowMessage($"Failed to drop class: {errorContent}", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Error dropping class: {ex.Message}", true);
+        }
+    }
+
+    private void ShowMessage(string msg, bool error)
+    {
+        message = msg;
+        isError = error;
+    }
+
+    private string GetGpaBadgeClass(double gpa)
+    {
+        if (gpa >= 3.7) return "bg-success";
+        if (gpa >= 3.0) return "bg-primary";
+        if (gpa >= 2.5) return "bg-warning";
+        return "bg-danger";
+    }
 }

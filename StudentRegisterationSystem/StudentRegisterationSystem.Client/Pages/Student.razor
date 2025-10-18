@@ -10,7 +10,7 @@
             <h2 class="mb-4 text-primary">
                 <i class="bi bi-person-circle"></i> Student Profile
             </h2>
-
+            
             @if (isLoading)
             {
                 <div class="text-center py-5">
@@ -211,7 +211,7 @@
 
     private void OnlineRegistration()
     {
-        Navigation.NavigateTo("/student/online-registration");
+        Navigation.NavigateTo("/student/register-courses");
     }
 
     private async Task Logout()

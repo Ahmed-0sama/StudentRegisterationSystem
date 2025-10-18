@@ -67,6 +67,55 @@ namespace BusinessLogic.Services
 				UserRoles = roles.ToList()
 			};
 		}
+		public async Task<AuthModel> RegisterDoctorAsync(RegisterDoctorModel model)
+		{
+			// Check if user already exists
+			var existingUser = await _userManager.FindByNameAsync(model.UserName);
+			if (existingUser != null)
+			{
+				return new AuthModel { Message = "User already exists" };
+			}
+
+			// Create application user
+			var user = new ApplicationUser
+			{
+				UserName = model.UserName,
+				FirstName = model.FirstName,
+				LastName = model.LastName
+			};
+
+			var result = await _userManager.CreateAsync(user, model.Password);
+			if (!result.Succeeded)
+			{
+				var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+				return new AuthModel { Message = errors };
+			}
+
+			// Assign "Doctor" role
+			await _userManager.AddToRoleAsync(user, "Doctor");
+
+			// Create Doctor entity
+			var doctor = new Doctor
+			{
+				UserId = user.Id,
+				FullName = $"{user.FirstName} {user.LastName}"
+			};
+
+			_context.Doctors.Add(doctor);
+			await _context.SaveChangesAsync();
+
+			// Generate JWT
+			var (token, expires) = await _jwt.GenerateAsync(user);
+			var roles = await _userManager.GetRolesAsync(user);
+
+			return new AuthModel
+			{
+				Token = token,
+				ExpireOn = expires,
+				RegisterationNumber = user.UserName,
+				UserRoles = roles.ToList()
+			};
+		}
 		public async Task<AuthModel> GetTokenAsync(Login model)
 		{
 

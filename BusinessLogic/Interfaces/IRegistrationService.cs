@@ -15,7 +15,6 @@ namespace BusinessLogic.Interfaces
 		Task<RegisterationPeriodDto> GetRegisterationPeriodByIdAsync(Guid periodId);
 		Task<bool> UpdateRegistertrationPeriodAsync(RegisterationPeriodDto period);
 		Task<bool> IsRegistrationOpenAsync();
-		Task<CourseRegistration> GetRegistrationByIdAsync(Guid registrationId);
 		Task<List<RegisterationPeriodDto>> GetAllRegisterationPeriodsAsync();
 
 

@@ -39,6 +39,22 @@ namespace BusinessLogic.Services
 				return new List<DoctorDto>();
 			}
 		}
+		public async Task<bool> RemoveDoctorAsync(Guid courseId, Guid doctorId)
+		{
+			if (courseId == Guid.Empty || doctorId == Guid.Empty)
+				return false;
+
+			var doctorCourse = await _dbcontext.DoctorCourses
+				.FirstOrDefaultAsync(dc => dc.CourseId == courseId && dc.DoctorId == doctorId);
+
+			if (doctorCourse == null)
+				return false;
+
+			_dbcontext.DoctorCourses.Remove(doctorCourse);
+			await _dbcontext.SaveChangesAsync();
+
+			return true;
+		}
 
 		public async Task<DoctorDto?> GetDoctorByIdAsync(Guid id)
 		{

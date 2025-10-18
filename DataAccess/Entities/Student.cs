@@ -28,7 +28,10 @@ namespace DataAccess.Entities
 		[ForeignKey(nameof(Department))]
 		public Guid DepartmentId { get; set; }
 		public Department Department { get; set; }
+		//need to remove
 		public ICollection<CourseRegistration> CourseRegistrations { get; set; }
+		public ICollection<ClassRegistration> ClassRegistrations { get; set; }
+
 	}
-		
+
 }

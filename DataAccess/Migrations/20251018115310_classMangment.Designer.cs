@@ -4,6 +4,7 @@ using DataAccess.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccess.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018115310_classMangment")]
+    partial class classMangment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -217,35 +220,6 @@ namespace DataAccess.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.ToTable("Courses");
-                });
-
-            modelBuilder.Entity("DataAccess.Entities.CoursePrerequisite", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ClassId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CourseId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PrerequisiteCourseId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClassId");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("PrerequisiteCourseId");
-
-                    b.ToTable("CoursePrerequisites");
                 });
 
             modelBuilder.Entity("DataAccess.Entities.CourseRegistration", b =>
@@ -640,29 +614,6 @@ namespace DataAccess.Migrations
                     b.Navigation("Department");
                 });
 
-            modelBuilder.Entity("DataAccess.Entities.CoursePrerequisite", b =>
-                {
-                    b.HasOne("DataAccess.Entities.Class", null)
-                        .WithMany("Prerequisites")
-                        .HasForeignKey("ClassId");
-
-                    b.HasOne("DataAccess.Entities.Course", "Course")
-                        .WithMany("PrerequisiteFor")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DataAccess.Entities.Course", "PrerequisiteCourse")
-                        .WithMany()
-                        .HasForeignKey("PrerequisiteCourseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("PrerequisiteCourse");
-                });
-
             modelBuilder.Entity("DataAccess.Entities.CourseRegistration", b =>
                 {
                     b.HasOne("DataAccess.Entities.Course", "Course")
@@ -803,8 +754,6 @@ namespace DataAccess.Migrations
 
             modelBuilder.Entity("DataAccess.Entities.Class", b =>
                 {
-                    b.Navigation("Prerequisites");
-
                     b.Navigation("Schedules");
 
                     b.Navigation("StudentRegisterations");
@@ -815,8 +764,6 @@ namespace DataAccess.Migrations
                     b.Navigation("CourseRegistration");
 
                     b.Navigation("DoctorCourses");
-
-                    b.Navigation("PrerequisiteFor");
                 });
 
             modelBuilder.Entity("DataAccess.Entities.Department", b =>

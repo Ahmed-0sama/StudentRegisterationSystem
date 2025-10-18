@@ -19,6 +19,9 @@ namespace DataAccess.Entities
 		public DateTime EndDate { get; set; }
 		public bool IsActive { get; set; }
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-		public virtual ICollection<CourseRegistration> CourseRegistrations { get; set; }
+		//need to remove
+
+		public virtual ICollection<ClassRegistration> ClassRegistrations { get; set; }
+
 	}
 }

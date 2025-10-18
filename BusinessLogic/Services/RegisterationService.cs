@@ -48,26 +48,26 @@ namespace BusinessLogic.Services
 			return period;
 		}
 
-		public async Task<bool> DropCourseAsync(Guid registrationId)
-		{
-			var registration = await _dbContext.CourseRegistration
-				.FirstOrDefaultAsync(cr => cr.Id == registrationId);
-			if (registration == null)
-			{
-				return false;
-			}
-			var now = DateTime.UtcNow;
-			var period = await _dbContext.RegistrationPeriods
-				.FirstOrDefaultAsync(rp=>rp.IsActive&&rp.StartDate<=now&&rp.EndDate>=now);
-			if (period == null)
-			{
-				throw new InvalidOperationException("Course dropping is not allowed outside of an active registration period.");
-			}
-			_dbContext.CourseRegistration.Remove(registration);
-			await _dbContext.SaveChangesAsync();
-			return true;
+		//public async Task<bool> DropCourseAsync(Guid registrationId)
+		//{
+		//	var registration = await _dbContext.CourseRegistration
+		//		.FirstOrDefaultAsync(cr => cr.Id == registrationId);
+		//	if (registration == null)
+		//	{
+		//		return false;
+		//	}
+		//	var now = DateTime.UtcNow;
+		//	var period = await _dbContext.RegistrationPeriods
+		//		.FirstOrDefaultAsync(rp=>rp.IsActive&&rp.StartDate<=now&&rp.EndDate>=now);
+		//	if (period == null)
+		//	{
+		//		throw new InvalidOperationException("Course dropping is not allowed outside of an active registration period.");
+		//	}
+		//	_dbContext.CourseRegistration.Remove(registration);
+		//	await _dbContext.SaveChangesAsync();
+		//	return true;
 
-		}
+		//}
 
 		public async Task<RegisterationPeriodDto> GetActiveRegisterationPeriodAsync()
 		{
@@ -101,16 +101,16 @@ namespace BusinessLogic.Services
 			return period;
 		}
 
-		public async Task<CourseRegistration> GetRegistrationByIdAsync(Guid registrationId)
-		{
-			if (registrationId == Guid.Empty)
-			{
-				throw new ArgumentException("Registration ID cannot be empty.");
-			}
-			var registration = await _dbContext.CourseRegistration
-				.FirstOrDefaultAsync(cr => cr.Id == registrationId);
-			return registration;
-		}
+		//public async Task<CourseRegistration> GetRegistrationByIdAsync(Guid registrationId)
+		//{
+		//	if (registrationId == Guid.Empty)
+		//	{
+		//		throw new ArgumentException("Registration ID cannot be empty.");
+		//	}
+		//	var registration = await _dbContext.CourseRegistration
+		//		.FirstOrDefaultAsync(cr => cr.Id == registrationId);
+		//	return registration;
+		//}
 		public async Task<bool> IsRegistrationOpenAsync()
 		{
 			var now = DateTime.UtcNow;

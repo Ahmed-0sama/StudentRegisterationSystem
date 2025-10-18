@@ -1,4 +1,5 @@
 ﻿using BusinessLogic.Interfaces;
+using BusinessLogic.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Shared.DTOs.Users;
@@ -45,5 +46,26 @@ namespace StudentRegisterationSystem.Controllers
 			// Success
 			return Ok(result);
 		}
+		[HttpPost("RegisterDoctor")]
+		public async Task<IActionResult> RegisterDoctor([FromBody] RegisterDoctorModel model)
+		{
+			if (!ModelState.IsValid)
+				return BadRequest(ModelState);
+
+			var result = await _authServices.RegisterDoctorAsync(model);
+
+			if (!string.IsNullOrEmpty(result.Message))
+				return BadRequest(new { success = false, message = result.Message });
+
+			return Ok(new
+			{
+				success = true,
+				token = result.Token,
+				expireOn = result.ExpireOn,
+				registrationNumber = result.RegisterationNumber,
+				roles = result.UserRoles
+			});
+		}
 	}
 }
+

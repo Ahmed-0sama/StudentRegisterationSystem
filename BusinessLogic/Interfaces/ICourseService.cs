@@ -16,6 +16,9 @@ namespace BusinessLogic.Interfaces
 		//Task<bool> DropCourse(Guid studentId, Guid courseId);
 
 		//admin operations
+		Task<List<CourseDto>> GetCompletedCoursesForStudent(string userId);
+		Task<bool> AddPrerequisite(AddPrerequisiteDto dto);
+		Task<bool> RemovePrerequisite(Guid courseId, Guid prerequisiteCourseId);
 		Task<CourseDto> CreateCourse(CreateCourseDto dto);
 
 		Task<bool> RemoveDoctorFromCourse(Guid courseId, Guid doctorId);

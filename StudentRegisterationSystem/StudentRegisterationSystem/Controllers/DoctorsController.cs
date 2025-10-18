@@ -31,16 +31,19 @@ namespace StudentRegisterationSystem.Controllers
 			var doctors = await _doctorService.GetAllDoctorsAsync();
 			return Ok(doctors);
 		}
-		[HttpGet("DoctorByCourse")]
+		[HttpGet("ByCourse/{courseId:guid}")]
 		public async Task<IActionResult> GetDoctorByCourseAsync(Guid courseId)
 		{
-			var doctor = await _doctorService.GetDoctorsByCourseAsync(courseId);
-			if (doctor == null)
+			var doctors = await _doctorService.GetDoctorsByCourseAsync(courseId);
+
+			if (doctors == null || doctors.Count == 0)
 			{
-				return NotFound();
+				return NotFound(); // return 404 if no doctors assigned
 			}
-			return Ok(doctor);
+
+			return Ok(doctors);
 		}
+
 		[HttpPost("AssignDoctor")]
 		public async Task<IActionResult> AssignDoctorToCourse([FromBody] AssignDoctorDto dto)
 		{
@@ -60,5 +63,19 @@ namespace StudentRegisterationSystem.Controllers
 				return BadRequest(new { success = false, message = ex.Message });
 			}
 		}
+			[HttpDelete("removedoctor")]
+			public async Task<IActionResult> RemoveDoctor([FromQuery] Guid courseId, [FromQuery] string doctorId)
+			{
+				if (!Guid.TryParse(doctorId, out var doctorGuid))
+					return BadRequest(false);
+
+				var success = await _doctorService.RemoveDoctorAsync(courseId, doctorGuid);
+
+				if (!success)
+					return NotFound(false);
+
+				return Ok(true);
+			}
 	}
+	
 }

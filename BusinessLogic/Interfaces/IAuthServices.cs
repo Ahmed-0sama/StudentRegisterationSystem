@@ -12,5 +12,6 @@ namespace BusinessLogic.Interfaces
 	{
 		Task<AuthModel> RegisterAsync(RegisterModel registerModel);
 		 Task<AuthModel> GetTokenAsync(Login model);
+		Task<AuthModel> RegisterDoctorAsync(RegisterDoctorModel model);
 	}
 }

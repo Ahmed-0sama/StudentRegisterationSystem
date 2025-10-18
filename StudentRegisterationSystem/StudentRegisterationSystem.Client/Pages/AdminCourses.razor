@@ -2,9 +2,9 @@
 @using Shared.DTOs.Courses
 @using Shared.DTOs.Department
 @using Shared.DTOs.Doctor
+@using Shared.DTOs.Faculty
 @inject HttpClient Http
 @inject IJSRuntime JS
-@using Shared.DTOs.Courses
 @using System.Net.Http.Json
 @using System.Text.Json
 
@@ -24,11 +24,51 @@
         </div>
     }
 
+    <!-- Faculty Filter Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label"><strong>Select Faculty</strong></label>
+                    <select class="form-select" @onchange="OnFacultyChanged">
+                        <option value="">-- Select Faculty --</option>
+                        @if (faculties?.Any() == true)
+                        {
+                            @foreach (var faculty in faculties)
+                            {
+                                <option value="@faculty.Id">@faculty.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label"><strong>Select Department</strong></label>
+                    <select class="form-select" @bind="selectedDepartmentId" disabled="@(string.IsNullOrEmpty(selectedFacultyId))">
+                        <option value="">-- Select Department --</option>
+                        @if (filteredDepartments?.Any() == true)
+                        {
+                            @foreach (var dept in filteredDepartments)
+                            {
+                                <option value="@dept.Id">@dept.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @if (isLoading)
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
             <p class="mt-2">Loading courses...</p>
+        </div>
+    }
+    else if (string.IsNullOrEmpty(selectedFacultyId))
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Please select a faculty to view courses.
         </div>
     }
     else
@@ -40,19 +80,35 @@
                         <th>Course Name</th>
                         <th>Department</th>
                         <th>Credit Hours</th>
+                        <th>Prerequisites</th>
                         <th>Assigned Doctors</th>
-                        <th style="width: 250px;">Actions</th>
+                        <th style="width: 280px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @if (courses?.Any() == true)
+                    @if (filteredCourses?.Any() == true)
                     {
-                        @foreach (var course in courses)
+                        @foreach (var course in filteredCourses)
                         {
                             <tr>
                                 <td><strong>@course.CourseName</strong></td>
                                 <td>@course.DepartmentName</td>
                                 <td>@course.CreditHours</td>
+                                <td>
+                                    @if (course.Prerequisites?.Any() == true)
+                                    {
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach (var prereq in course.Prerequisites)
+                                            {
+                                                <span class="badge bg-secondary">@prereq.PrerequisiteCourseName</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">None</span>
+                                    }
+                                </td>
                                 <td>
                                     @if (course.DoctorsNames?.Any() == true)
                                     {
@@ -70,13 +126,16 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-info" @onclick="() => ShowSetPrerequisitesModal(course)" title="Set Prerequisites">
+                                            <i class="bi bi-link-45deg"></i> Prerequisites
+                                        </button>
                                         <button class="btn btn-success" @onclick="() => ShowAssignDoctorModal(course)">
                                             <i class="bi bi-person-plus"></i> Assign
                                         </button>
                                         <button class="btn btn-warning" @onclick="() => ShowRemoveDoctorModal(course)">
                                             <i class="bi bi-person-dash"></i> Remove
                                         </button>
-                                        <button class="btn btn-info" @onclick="() => ShowCourseDetails(course)">
+                                        <button class="btn btn-secondary" @onclick="() => ShowCourseDetails(course)">
                                             <i class="bi bi-eye"></i> View
                                         </button>
                                     </div>
@@ -87,7 +146,7 @@
                     else
                     {
                         <tr>
-                            <td colspan="5" class="text-center">No courses found.</td>
+                            <td colspan="6" class="text-center">No courses found for selected faculty.</td>
                         </tr>
                     }
                 </tbody>
@@ -95,6 +154,68 @@
         </div>
     }
 </div>
+
+<!-- Set Prerequisites Modal -->
+@if (showPrerequisitesModal && selectedCourse != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">Set Course Prerequisites</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="mb-3">Course: <strong>@selectedCourse.CourseName</strong></h6>
+
+                    <div class="mb-3">
+                        <label class="form-label">Available Courses to Add as Prerequisites</label>
+                        <select class="form-select" @bind="selectedPrerequisiteCourseId">
+                            <option value="">-- Select a Course --</option>
+                            @if (availablePrerequisiteCourses?.Any() == true)
+                            {
+                                @foreach (var course in availablePrerequisiteCourses)
+                                {
+                                    <option value="@course.id">@course.CourseName (@course.CourseCode)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary mb-3" @onclick="AddPrerequisite" disabled="@(string.IsNullOrEmpty(selectedPrerequisiteCourseId) || isSubmitting)">
+                        <i class="bi bi-plus"></i> Add Prerequisite
+                    </button>
+
+                    <h6 class="mb-2">Current Prerequisites:</h6>
+                    @if (selectedCourse.Prerequisites?.Any() == true)
+                    {
+                        <div class="list-group">
+                            @foreach (var prereq in selectedCourse.Prerequisites)
+                            {
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <strong>@prereq.PrerequisiteCourseName</strong>
+                                        <small class="text-muted">(@prereq.PrerequisiteCourseCode)</small>
+                                    </span>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => RemovePrerequisite(prereq.PrerequisiteCourseId)" disabled="@isSubmitting">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">No prerequisites set for this course.</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals" disabled="@isSubmitting">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Create Course Modal -->
 @if (showCreateModal)
@@ -112,7 +233,7 @@
                         <input type="text" class="form-control" @bind="createCourseDto.CourseName" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Crourse Code</label>
+                        <label class="form-label">Course Code</label>
                         <input type="text" class="form-control" @bind="createCourseDto.CourseCode" />
                     </div>
                     <div class="mb-3">
@@ -123,9 +244,9 @@
                         <label class="form-label">Department</label>
                         <select class="form-select" @bind="createCourseDto.DepartmentId">
                             <option value="">-- Select Department --</option>
-                            @if (departments?.Any() == true)
+                            @if (filteredDepartments?.Any() == true)
                             {
-                                @foreach (var dept in departments)
+                                @foreach (var dept in filteredDepartments)
                                 {
                                     <option value="@dept.Id">@dept.Name</option>
                                 }
@@ -196,7 +317,7 @@
 <!-- Remove Doctor Modal -->
 @if (showRemoveDoctorModal && selectedCourse != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-warning">
@@ -205,25 +326,22 @@
                 </div>
                 <div class="modal-body">
                     <h6 class="mb-3">Course: <strong>@selectedCourse.CourseName</strong></h6>
-                    @if (selectedCourse.DoctorsNames?.Any() == true)
+                    @if (assignedDoctors?.Any() == true)
                     {
                         <div class="mb-3">
                             <label class="form-label">Select Doctor to Remove</label>
                             <select class="form-select" @bind="selectedDoctorIdToRemove">
                                 <option value="">-- Select Doctor --</option>
-                                @if (doctors?.Any() == true)
+                                @foreach (var doctor in assignedDoctors)
                                 {
-                                    @foreach (var doctor in doctors.Where(d => selectedCourse.DoctorsNames.Contains(d.FullName)))
-                                    {
-                                        <option value="@doctor.Id">@doctor.FullName</option>
-                                    }
+                                    <option value="@doctor.Id">@doctor.FullName</option>
                                 }
                             </select>
                         </div>
                     }
                     else
                     {
-                        <div class="alert alert-info">No doctors assigned to this course.</div>
+                        <div class="alert alert-info">Loading doctors...</div>
                     }
                 </div>
                 <div class="modal-footer">
@@ -248,7 +366,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header bg-info text-white">
+                <div class="modal-header bg-secondary text-white">
                     <h5 class="modal-title">Course Details</h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
                 </div>
@@ -256,26 +374,42 @@
                     <div class="row">
                         <div class="col-md-6">
                             <p><strong>Course Name:</strong> @selectedCourse.CourseName</p>
+                            <p><strong>Course Code:</strong> @selectedCourse.CourseCode</p>
                             <p><strong>Department:</strong> @selectedCourse.DepartmentName</p>
                             <p><strong>Credit Hours:</strong> @selectedCourse.CreditHours</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Assigned Doctors:</strong></p>
-                            @if (selectedCourse.DoctorsNames?.Any() == true)
+                            <p><strong>Prerequisites:</strong></p>
+                            @if (selectedCourse.Prerequisites?.Any() == true)
                             {
                                 <ul class="list-group">
-                                    @foreach (var doctor in selectedCourse.DoctorsNames)
+                                    @foreach (var prereq in selectedCourse.Prerequisites)
                                     {
-                                        <li class="list-group-item">@doctor</li>
+                                        <li class="list-group-item">@prereq.PrerequisiteCourseName</li>
                                     }
                                 </ul>
                             }
                             else
                             {
-                                <p class="text-muted">No doctors assigned</p>
+                                <p class="text-muted">No prerequisites</p>
                             }
                         </div>
                     </div>
+                    <hr />
+                    <p><strong>Assigned Doctors:</strong></p>
+                    @if (selectedCourse.DoctorsNames?.Any() == true)
+                    {
+                        <ul class="list-group">
+                            @foreach (var doctor in selectedCourse.DoctorsNames)
+                            {
+                                <li class="list-group-item">@doctor</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No doctors assigned</p>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseModals">Close</button>
@@ -287,8 +421,16 @@
 
 @code {
     private List<CourseDto> courses = new();
+    private List<CourseDto> filteredCourses = new();
+    private List<CourseDto> availablePrerequisiteCourses = new();
     private List<GetDepartmentDto> departments = new();
+    private List<GetDepartmentDto> filteredDepartments = new();
     private List<DoctorDto> doctors = new();
+    private List<FacultyDto> faculties = new();
+
+    private string selectedFacultyId = string.Empty;
+    private string selectedDepartmentId = string.Empty;
+    private string selectedPrerequisiteCourseId = string.Empty;
     private CourseDto? selectedCourse;
     private CreateCourseDto createCourseDto = new();
     private AssignDoctorDto assignDoctorDto = new();
@@ -301,6 +443,8 @@
     private bool showCreateModal = false;
     private bool showAssignDoctorModal = false;
     private bool showRemoveDoctorModal = false;
+    private bool showPrerequisitesModal = false;
+    private List<DoctorDto> assignedDoctors = new();
     private bool showDetailsModal = false;
 
     protected override async Task OnInitializedAsync()
@@ -318,6 +462,7 @@
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             await Task.WhenAll(
+                LoadFaculties(),
                 LoadCourses(),
                 LoadDepartments(),
                 LoadDoctors()
@@ -326,6 +471,19 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task LoadFaculties()
+    {
+        try
+        {
+            faculties = await Http.GetFromJsonAsync<List<FacultyDto>>("api/faculties/GetAllFaculties") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading faculties: {ex.Message}");
+            faculties = new();
         }
     }
 
@@ -360,7 +518,7 @@
     {
         try
         {
-            var response = await Http.GetFromJsonAsync<List<DoctorDto>>("api/doctors");
+            var response = await Http.GetFromJsonAsync<List<DoctorDto>>("api/doctors/GetAllDoctors");
             doctors = response ?? new();
         }
         catch (Exception ex)
@@ -370,6 +528,37 @@
         }
     }
 
+    private async Task OnFacultyChanged(ChangeEventArgs e)
+    {
+        selectedFacultyId = e.Value?.ToString() ?? string.Empty;
+        selectedDepartmentId = string.Empty;
+        filteredCourses = new();
+
+        if (!string.IsNullOrEmpty(selectedFacultyId))
+        {
+            try
+            {
+                var facultyGuid = Guid.Parse(selectedFacultyId);
+
+                filteredDepartments = departments
+                    .Where(d => d.FacultyId == facultyGuid)
+                    .ToList();
+
+                var facultyDepartmentIds = filteredDepartments.Select(d => d.Id).ToList();
+                filteredCourses = courses
+                    .Where(c => facultyDepartmentIds.Contains(c.DepartmentId))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error filtering: {ex.Message}");
+                filteredDepartments = new();
+                filteredCourses = new();
+            }
+        }
+
+        StateHasChanged();
+    }
 
     private void ShowCreateCourseModal()
     {
@@ -384,11 +573,33 @@
         showAssignDoctorModal = true;
     }
 
-    private void ShowRemoveDoctorModal(CourseDto course)
+    private async Task ShowRemoveDoctorModal(CourseDto course)
     {
         selectedCourse = course;
+        assignedDoctors = new List<DoctorDto>();
         selectedDoctorIdToRemove = string.Empty;
+
         showRemoveDoctorModal = true;
+        StateHasChanged();
+
+        if (selectedCourse != null)
+        {
+            await LoadAssignedDoctors(selectedCourse.id);
+            StateHasChanged();
+        }
+    }
+
+    private void ShowSetPrerequisitesModal(CourseDto course)
+    {
+        selectedCourse = course;
+        selectedPrerequisiteCourseId = string.Empty;
+
+        // Load available courses that are not the selected course itself
+        availablePrerequisiteCourses = courses
+            .Where(c => c.id != course.id && !course.Prerequisites?.Any(p => p.PrerequisiteCourseId == c.id) == true)
+            .ToList();
+
+        showPrerequisitesModal = true;
     }
 
     private void ShowCourseDetails(CourseDto course)
@@ -402,11 +613,13 @@
         showCreateModal = false;
         showAssignDoctorModal = false;
         showRemoveDoctorModal = false;
+        showPrerequisitesModal = false;
         showDetailsModal = false;
         selectedCourse = null;
         createCourseDto = new();
         assignDoctorDto = new();
         selectedDoctorIdToRemove = string.Empty;
+        selectedPrerequisiteCourseId = string.Empty;
     }
 
     private async Task CreateCourse()
@@ -430,11 +643,118 @@
 
                 CloseModals();
                 await LoadCourses();
+                await OnFacultyChanged(new ChangeEventArgs { Value = selectedFacultyId });
             }
             else
             {
                 var errorText = await response.Content.ReadAsStringAsync();
                 message = $"Failed to create course. Server said: {errorText}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task AddPrerequisite()
+    {
+        if (selectedCourse == null || string.IsNullOrEmpty(selectedPrerequisiteCourseId))
+            return;
+
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var prerequisiteDto = new AddPrerequisiteDto
+            {
+                CourseId = selectedCourse.id,
+                PrerequisiteCourseId = Guid.Parse(selectedPrerequisiteCourseId)
+            };
+
+            var response = await Http.PostAsJsonAsync("api/course/AddPrerequisite", prerequisiteDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Prerequisite added successfully!";
+                isError = false;
+                selectedPrerequisiteCourseId = string.Empty;
+
+                await LoadCourses();
+                var courseToUpdate = courses.FirstOrDefault(c => c.id == selectedCourse.id);
+                if (courseToUpdate != null)
+                {
+                    selectedCourse = courseToUpdate;
+                    availablePrerequisiteCourses = courses
+                        .Where(c => c.id != selectedCourse.id && !selectedCourse.Prerequisites?.Any(p => p.PrerequisiteCourseId == c.id) == true)
+                        .ToList();
+                }
+            }
+            else
+            {
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                message = !string.IsNullOrWhiteSpace(errorMsg) ? errorMsg : "Failed to add prerequisite.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task RemovePrerequisite(Guid prerequisiteId)
+    {
+        if (selectedCourse == null)
+            return;
+
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.DeleteAsync(
+                $"api/course/RemovePrerequisite?courseId={selectedCourse.id}&prerequisiteId={prerequisiteId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Prerequisite removed successfully!";
+                isError = false;
+
+                await LoadCourses();
+                var courseToUpdate = courses.FirstOrDefault(c => c.id == selectedCourse.id);
+                if (courseToUpdate != null)
+                {
+                    selectedCourse = courseToUpdate;
+                    availablePrerequisiteCourses = courses
+                        .Where(c => c.id != selectedCourse.id && !selectedCourse.Prerequisites?.Any(p => p.PrerequisiteCourseId == c.id) == true)
+                        .ToList();
+                }
+            }
+            else
+            {
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                message = !string.IsNullOrWhiteSpace(errorMsg) ? errorMsg : "Failed to remove prerequisite.";
                 isError = true;
             }
         }
@@ -464,7 +784,7 @@
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             assignDoctorDto.CourseId = selectedCourse.id;
-            var response = await Http.PostAsJsonAsync("api/admincourses/assign-doctor", assignDoctorDto);
+            var response = await Http.PostAsJsonAsync("api/doctors/AssignDoctor", assignDoctorDto);
 
             if (response.IsSuccessStatusCode)
             {
@@ -472,10 +792,10 @@
                 isError = false;
                 CloseModals();
                 await LoadCourses();
+                await OnFacultyChanged(new ChangeEventArgs { Value = selectedFacultyId });
             }
             else
             {
-                // Optional: read server message if you return one
                 var errorMsg = await response.Content.ReadAsStringAsync();
                 message = !string.IsNullOrWhiteSpace(errorMsg)
                     ? errorMsg
@@ -494,6 +814,30 @@
         }
     }
 
+    private async Task LoadAssignedDoctors(Guid courseId)
+    {
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var apiUrl = $"https://localhost:7179/api/doctors/ByCourse/{courseId}";
+            Console.WriteLine("Calling API for assigned doctors: " + apiUrl);
+
+            assignedDoctors = await Http.GetFromJsonAsync<List<DoctorDto>>(apiUrl)
+                              ?? new List<DoctorDto>();
+
+            selectedDoctorIdToRemove = assignedDoctors.FirstOrDefault()?.Id.ToString() ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading assigned doctors: {ex.Message}");
+            assignedDoctors = new List<DoctorDto>();
+            selectedDoctorIdToRemove = string.Empty;
+        }
+    }
+
     private async Task RemoveDoctor()
     {
         if (selectedCourse == null || string.IsNullOrEmpty(selectedDoctorIdToRemove))
@@ -509,7 +853,7 @@
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             var response = await Http.DeleteAsync(
-                $"api/admincourses/remove-doctor?courseId={selectedCourse.id}&doctorId={selectedDoctorIdToRemove}");
+                $"api/doctors/removedoctor?courseId={selectedCourse.id}&doctorId={selectedDoctorIdToRemove}");
 
             if (response.IsSuccessStatusCode)
             {
@@ -517,10 +861,10 @@
                 isError = false;
                 CloseModals();
                 await LoadCourses();
+                await OnFacultyChanged(new ChangeEventArgs { Value = selectedFacultyId });
             }
             else
             {
-                // Try to extract message from backend (if it returns plain text or JSON)
                 var errorMsg = await response.Content.ReadAsStringAsync();
                 message = !string.IsNullOrWhiteSpace(errorMsg)
                     ? errorMsg
@@ -538,5 +882,4 @@
             isSubmitting = false;
         }
     }
-        
 }

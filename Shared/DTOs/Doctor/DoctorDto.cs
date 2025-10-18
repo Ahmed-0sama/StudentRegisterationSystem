@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Shared.DTOs.Doctor
@@ -9,6 +10,7 @@ namespace Shared.DTOs.Doctor
 	public class DoctorDto
 	{
 		public Guid Id { get; set; }
+		[JsonPropertyName("fullName")]
 		public string FullName { get; set; }
 	}
 }

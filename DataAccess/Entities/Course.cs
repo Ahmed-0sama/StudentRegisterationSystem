@@ -20,6 +20,8 @@ namespace DataAccess.Entities
 		public Guid DepartmentId { get; set; }
 		public Department Department { get; set; }
 		public ICollection<CourseRegistration> CourseRegistration { get; set; }
+		public ICollection<CoursePrerequisite> PrerequisiteFor { get; set; } = new List<CoursePrerequisite>();
+
 		public ICollection<DoctorCourse> DoctorCourses { get; set; }
 	}
 }

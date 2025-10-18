@@ -69,6 +69,8 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IRegistrationService, RegisterationService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IDoctorService, DoctorService>();
+builder.Services.AddScoped<IClassService, ClassService>();
+
 
 // Add CORS if needed
 builder.Services.AddCors(options =>

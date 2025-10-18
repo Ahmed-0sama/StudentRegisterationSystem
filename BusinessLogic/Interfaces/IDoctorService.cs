@@ -14,5 +14,6 @@ namespace BusinessLogic.Interfaces
 		Task<DoctorDto?> GetDoctorByIdAsync(Guid id);
 		Task<List<DoctorDto>> GetDoctorsByCourseAsync(Guid courseId);
 		Task<bool> AssignDoctorToCourse(AssignDoctorDto dto);
+		Task<bool> RemoveDoctorAsync(Guid courseId, Guid doctorId);
 	}
 }

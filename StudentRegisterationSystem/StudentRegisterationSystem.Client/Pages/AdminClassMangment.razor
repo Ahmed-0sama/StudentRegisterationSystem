@@ -1,0 +1,620 @@
+﻿@page "/admin/classes"
+@using Shared.DTOs.Classes
+@using Shared.DTOs.Courses
+@using Shared.DTOs.Department
+@using Shared.DTOs.Doctor
+@using Shared.DTOs.Faculty
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="container-fluid my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Class Management</h2>
+        <button class="btn btn-primary" @onclick="ShowCreateClassModal">
+            <i class="bi bi-plus-circle"></i> Create New Class
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+            @message
+            <button type="button" class="btn-close" @onclick="() => message = string.Empty"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading classes...</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Course</th>
+                        <th>Class Code</th>
+                        <th>Doctor</th>
+                        <th>Capacity</th>
+                        <th>Schedules</th>
+                        <th style="width: 250px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (classes?.Any() == true)
+                    {
+                        @foreach (var cls in classes)
+                        {
+                            <tr>
+                                <td><strong>@cls.CourseName</strong></td>
+                                <td><span class="badge bg-primary">@cls.ClassCode</span></td>
+                                <td>@cls.DoctorName</td>
+                                <td>@cls.MaxCapacity</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-success" @onclick="() => ShowAddScheduleModal(cls.ClassId)">
+                                            <i class="bi bi-clock-plus"></i> Add Schedule
+                                        </button>
+                                        <button class="btn btn-info" @onclick="() => ShowClassDetails(cls)">
+                                            <i class="bi bi-eye"></i> Details
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center">No classes found.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Create Class Modal -->
+@if (showCreateModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Class</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Faculty</label>
+                        <select class="form-select" @onchange="OnCreateFacultyChanged">
+                            <option value="">-- Select Faculty --</option>
+                            @if (faculties?.Any() == true)
+                            {
+                                @foreach (var faculty in faculties)
+                                {
+                                    <option value="@faculty.Id">@faculty.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <select class="form-select" @onchange="OnCreateDepartmentChanged" disabled="@string.IsNullOrEmpty(createModalFacultyId)">
+                            <option value="">-- Select Department --</option>
+                            @if (createModalFilteredDepartments?.Any() == true)
+                            {
+                                @foreach (var dept in createModalFilteredDepartments)
+                                {
+                                    <option value="@dept.Id">@dept.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Course</label>
+                        <select class="form-select" @bind="selectedCourseIdString" disabled="@string.IsNullOrEmpty(createModalDepartmentId)">
+                            <option value="">-- Select Course --</option>
+                            @if (createModalFilteredCourses?.Any() == true)
+                            {
+                                @foreach (var course in createModalFilteredCourses)
+                                {
+                                    <option value="@course.id">@course.CourseName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Doctor</label>
+                        <select class="form-select" @bind="selectedDoctorIdString" @bind:event="onchange">
+                            <option value="">-- Select Doctor --</option>
+                            @if (doctors?.Any() == true)
+                            {
+                                @foreach (var doctor in doctors)
+                                {
+                                    <option value="@doctor.Id">@doctor.FullName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Class Code</label>
+                        <input type="text" class="form-control" placeholder="e.g., A, B, Section 1" @bind="createClassDto.ClassCode" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Max Capacity</label>
+                        <input type="number" class="form-control" @bind="createClassDto.MaxCapacity" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Location</label>
+                        <input type="text" class="form-control" placeholder="e.g., Building A, Room 101" @bind="createClassDto.Location" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals" disabled="@isSubmitting">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="CreateClass" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Create Class
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Add Schedule Modal -->
+@if (showAddScheduleModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Add Schedule to Class</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Day of Week</label>
+                        <select class="form-select" @bind="addScheduleDto.DayOfWeek">
+                            <option value="">-- Select Day --</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                            <option value="Sunday">Sunday</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Start Time</label>
+                        <input type="time" class="form-control" @bind="startTimeString" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">End Time</label>
+                        <input type="time" class="form-control" @bind="endTimeString" />
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals" disabled="@isSubmitting">Cancel</button>
+                    <button type="button" class="btn btn-success" @onclick="AddSchedule" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Add Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Class Details Modal -->
+@if (showDetailsModal && selectedClass != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">Class Details</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Course:</strong> @selectedClass.CourseName</p>
+                            <p><strong>Class Code:</strong> @selectedClass.ClassCode</p>
+                            <p><strong>Doctor:</strong> @selectedClass.DoctorName</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Max Capacity:</strong> @selectedClass.MaxCapacity</p>
+                            <p><strong>Status:</strong> <span class="badge bg-success">@selectedClass.Status</span></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ClassDto> classes = new();
+    private List<CourseDto> courses = new();
+    private List<DoctorDto> doctors = new();
+    private List<GetDepartmentDto> departments = new();
+    private List<FacultyDto> faculties = new();
+
+    private ClassDto? selectedClass;
+    private CreateClassDto createClassDto = new();
+    private AddScheduleDto addScheduleDto = new();
+
+    private string selectedCourseIdString = string.Empty;
+    private string selectedDoctorIdString = string.Empty;
+
+    // Create Modal Filter Variables
+    private string createModalFacultyId = string.Empty;
+    private string createModalDepartmentId = string.Empty;
+    private List<GetDepartmentDto> createModalFilteredDepartments = new();
+    private List<CourseDto> createModalFilteredCourses = new();
+
+    private TimeOnly startTimeString = new(9, 0);
+    private TimeOnly endTimeString = new(10, 30);
+    private Guid currentClassIdForSchedule = Guid.Empty;
+
+    private string message = string.Empty;
+    private bool isError = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool showCreateModal = false;
+    private bool showAddScheduleModal = false;
+    private bool showDetailsModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            await Task.WhenAll(
+                LoadFaculties(),
+                LoadClasses(),
+                LoadCourses(),
+                LoadDepartments(),
+                LoadDoctors()
+            );
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadFaculties()
+    {
+        try
+        {
+            faculties = await Http.GetFromJsonAsync<List<FacultyDto>>("api/faculties/GetAllFaculties") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading faculties: {ex.Message}");
+            faculties = new();
+        }
+    }
+
+    private async Task LoadClasses()
+    {
+        try
+        {
+            classes = await Http.GetFromJsonAsync<List<ClassDto>>("api/class/all") ?? new();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error loading classes: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task LoadCourses()
+    {
+        try
+        {
+            courses = await Http.GetFromJsonAsync<List<CourseDto>>("api/course/GetAllCourses") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading courses: {ex.Message}");
+            courses = new();
+        }
+    }
+
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<GetDepartmentDto>>("api/departments/GetAllDepartments");
+            departments = response ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading departments: {ex.Message}");
+            departments = new();
+        }
+    }
+
+    private async Task LoadDoctors()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<DoctorDto>>("api/doctors/GetAllDoctors");
+            doctors = response ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading doctors: {ex.Message}");
+            doctors = new();
+        }
+    }
+
+    private void ShowCreateClassModal()
+    {
+        createClassDto = new CreateClassDto();
+        selectedCourseIdString = string.Empty;
+        selectedDoctorIdString = string.Empty;
+        createModalFacultyId = string.Empty;
+        createModalDepartmentId = string.Empty;
+        createModalFilteredDepartments = new();
+        createModalFilteredCourses = new();
+        showCreateModal = true;
+    }
+
+    private void ShowAddScheduleModal(Guid classId)
+    {
+        currentClassIdForSchedule = classId;
+        addScheduleDto = new AddScheduleDto();
+        startTimeString = new TimeOnly(9, 0);
+        endTimeString = new TimeOnly(10, 30);
+        showAddScheduleModal = true;
+    }
+
+    private void ShowClassDetails(ClassDto cls)
+    {
+        selectedClass = cls;
+        showDetailsModal = true;
+    }
+
+    private async Task ShowSchedules(Guid classId)
+    {
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.GetAsync($"api/class/{classId}/schedules");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var schedules = await response.Content.ReadFromJsonAsync<List<ClassScheduleDto>>();
+                message = $"Class has {schedules?.Count ?? 0} schedule(s)";
+                isError = false;
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                message = $"Failed to load schedules: {error}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error loading schedules: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void CloseModals()
+    {
+        showCreateModal = false;
+        showAddScheduleModal = false;
+        showDetailsModal = false;
+        selectedClass = null;
+        createClassDto = new();
+        addScheduleDto = new();
+        selectedCourseIdString = string.Empty;
+        selectedDoctorIdString = string.Empty;
+        createModalFacultyId = string.Empty;
+        createModalDepartmentId = string.Empty;
+        createModalFilteredDepartments = new();
+        createModalFilteredCourses = new();
+    }
+
+    private void OnCreateFacultyChanged(ChangeEventArgs e)
+    {
+        createModalFacultyId = e.Value?.ToString() ?? string.Empty;
+        createModalDepartmentId = string.Empty;
+        selectedCourseIdString = string.Empty;
+        createModalFilteredDepartments = new();
+        createModalFilteredCourses = new();
+
+        if (!string.IsNullOrEmpty(createModalFacultyId))
+        {
+            try
+            {
+                var facultyGuid = Guid.Parse(createModalFacultyId);
+                createModalFilteredDepartments = departments
+                    .Where(d => d.FacultyId == facultyGuid)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error filtering departments in create modal: {ex.Message}");
+                createModalFilteredDepartments = new();
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnCreateDepartmentChanged(ChangeEventArgs e)
+    {
+        createModalDepartmentId = e.Value?.ToString() ?? string.Empty;
+        selectedCourseIdString = string.Empty;
+        createModalFilteredCourses = new();
+
+        if (!string.IsNullOrEmpty(createModalDepartmentId))
+        {
+            try
+            {
+                var departmentGuid = Guid.Parse(createModalDepartmentId);
+                createModalFilteredCourses = courses
+                    .Where(c => c.DepartmentId == departmentGuid)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error filtering courses in create modal: {ex.Message}");
+                createModalFilteredCourses = new();
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task CreateClass()
+    {
+        if (string.IsNullOrEmpty(selectedCourseIdString) || string.IsNullOrEmpty(selectedDoctorIdString))
+        {
+            message = "Please select a course and doctor";
+            isError = true;
+            return;
+        }
+
+        if (!Guid.TryParse(selectedCourseIdString, out var courseId) ||
+            !Guid.TryParse(selectedDoctorIdString, out var doctorId))
+        {
+            message = "Invalid course or doctor selection";
+            isError = true;
+            return;
+        }
+
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var classToCreate = new CreateClassDto
+            {
+                CourseId = courseId,
+                DoctorId = doctorId,
+                ClassCode = createClassDto.ClassCode,
+                MaxCapacity = createClassDto.MaxCapacity,
+                Location = createClassDto.Location
+            };
+
+            var response = await Http.PostAsJsonAsync("api/class/create", classToCreate);
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Class created successfully!";
+                isError = false;
+                CloseModals();
+                await LoadClasses();
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                message = $"Failed to create class: {errorText}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task AddSchedule()
+    {
+        if (string.IsNullOrEmpty(addScheduleDto.DayOfWeek))
+        {
+            message = "Please select a day of week";
+            isError = true;
+            return;
+        }
+
+        isSubmitting = true;
+        message = string.Empty;
+
+        try
+        {
+            addScheduleDto.StartTime = startTimeString.ToTimeSpan();
+            addScheduleDto.EndTime = endTimeString.ToTimeSpan();
+
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.PostAsJsonAsync(
+                $"api/class/{currentClassIdForSchedule}/schedule",
+                addScheduleDto
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Schedule added successfully!";
+                isError = false;
+                CloseModals();
+                await LoadClasses();
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                message = $"Failed to add schedule: {errorText}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
