@@ -105,6 +105,7 @@ namespace BusinessLogic.Services
 				Status = "Active",
 				RegisteredAt = DateTime.UtcNow
 			};
+			classEntity.AvailableSeats--;
 
 			_context.ClassRegistrations.Add(registration);
 			await _context.SaveChangesAsync();
@@ -170,7 +171,8 @@ namespace BusinessLogic.Services
 				CourseId = dto.CourseId,
 				DoctorId = dto.DoctorId,
 				ClassCode = dto.ClassCode,
-				MaxCapacity = dto.MaxCapacity
+				MaxCapacity = dto.MaxCapacity,
+				AvailableSeats=dto.MaxCapacity
 			};
 
 			_context.Classes.Add(classEntity);
@@ -292,7 +294,7 @@ namespace BusinessLogic.Services
 					ClassCode = c.ClassCode,
 					DoctorName = c.Doctor.User.FirstName + " " + c.Doctor.User.LastName,
 					MaxCapacity = c.MaxCapacity,
-					AvailableSeats = c.MaxCapacity - c.StudentRegisterations.Count,
+					AvailableSeats = c.AvailableSeats,
 					Schedules = c.Schedules.Select(s => new ClassScheduleDto
 					{
 						ScheduleId = s.Id,
@@ -354,6 +356,7 @@ namespace BusinessLogic.Services
 		{
 			var registration = await _context.ClassRegistrations
 				.Include(cr => cr.Student)
+				.Include(cr => cr.Class)
 				.FirstOrDefaultAsync(cr => cr.Id == registrationId);
 
 			if (registration == null)
@@ -366,6 +369,11 @@ namespace BusinessLogic.Services
 				throw new InvalidOperationException("This class has already been dropped");
 
 			registration.Status = "Dropped";
+			if (registration.Class != null)
+			{
+				registration.Class.AvailableSeats++;
+				_context.Classes.Update(registration.Class);
+			}
 			_context.ClassRegistrations.Update(registration);
 			await _context.SaveChangesAsync();
 

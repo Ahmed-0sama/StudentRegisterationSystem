@@ -15,5 +15,6 @@ namespace DataAccess.Entities
 		[Required, StringLength(100)]
 		public string Name { get; set; }
 		public ICollection<Department> Departments { get; set; }
+		public ICollection<Doctor> Doctors { get; set; }
 	}
 }

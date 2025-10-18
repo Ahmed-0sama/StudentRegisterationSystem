@@ -20,7 +20,7 @@ namespace DataAccess.Entities
 		public string? Grade { get; set; }
 		public string? Semester { get; set; }
 		[StringLength(20)]
-		public string Status { get; set; } = "Active";
+		public string Status { get; set; }
 		[ForeignKey(nameof(RegistrationPeriod))]
 		public Guid RegistrationPeriodId { get; set; }
 

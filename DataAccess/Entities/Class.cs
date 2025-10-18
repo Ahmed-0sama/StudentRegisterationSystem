@@ -18,6 +18,7 @@ namespace DataAccess.Entities
 		public Guid DoctorId { get; set; }
 		public string ClassCode { get; set; }
 		public int MaxCapacity { get; set; }
+		public int AvailableSeats { get; set; }
 		public Course Course { get; set; }
 		public Doctor Doctor { get; set; }
 		public ICollection<ClassSchedule>Schedules { get; set; }
