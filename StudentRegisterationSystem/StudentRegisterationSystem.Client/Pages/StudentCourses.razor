@@ -292,7 +292,6 @@
     {
         try
         {
-            // Your endpoint returns List<AvailableClassDto> directly
             availableClasses = await Http.GetFromJsonAsync<List<AvailableClassDto>>("api/Class/available") ?? new List<AvailableClassDto>();
         }
         catch (Exception ex)
@@ -306,7 +305,7 @@
     {
         try
         {
-            // Direct deserialization since your API returns the DTO directly
+
             activeRegistrationPeriod = await Http.GetFromJsonAsync<RegisterationPeriodDto>("api/RegisterationMangement/GetActive");
 
             if (activeRegistrationPeriod != null)
@@ -325,7 +324,7 @@
     {
         try
         {
-            // Your endpoint is "my-classes" not "registered"
+
             registeredClasses = await Http.GetFromJsonAsync<List<RegisteredClassDto>>("api/Class/my-classes") ?? new List<RegisteredClassDto>();
         }
         catch (Exception ex)
@@ -339,7 +338,7 @@
     {
         try
         {
-            // Your endpoint is "GetStudentData" not "info"
+
             studentInfo = await Http.GetFromJsonAsync<StudentDto>("api/Student/GetStudentData");
         }
         catch (Exception ex)
@@ -377,7 +376,6 @@
         isSubmitting = true;
         try
         {
-            // Get active registration period ID
             if (activeRegistrationPeriod == null)
             {
                 ShowMessage("No active registration period", true);
@@ -385,7 +383,6 @@
                 return;
             }
 
-            // Register each class individually since your API expects RegisterToClassDto
             int successCount = 0;
             int failCount = 0;
             List<string> errors = new List<string>();
@@ -453,7 +450,6 @@
 
         try
         {
-            // Your endpoint is POST drop/{registrationId}, not DELETE
             var response = await Http.PostAsync($"api/Class/drop/{registrationId}", null);
 
             if (response.IsSuccessStatusCode)

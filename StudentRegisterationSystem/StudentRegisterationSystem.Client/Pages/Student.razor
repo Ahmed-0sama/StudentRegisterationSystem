@@ -216,7 +216,7 @@
 
     private async Task Logout()
     {
-        // Remove JWT from local storage
+
         await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
 
         // Optional: clear default HttpClient authorization header

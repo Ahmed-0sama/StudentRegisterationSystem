@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Dockerfile" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\StudentRegisterationSystem.Client\Component.razor" Link="Component.razor" />
   </ItemGroup>
 

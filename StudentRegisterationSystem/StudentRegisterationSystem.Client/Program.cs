@@ -20,7 +20,7 @@ builder.Services.AddScoped(sp =>
 
 	var client = new HttpClient(new JwtHandler(js, handler))
 	{
-		BaseAddress = new Uri("https://localhost:7179/")
+		BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
 	};
 
 	return client;
