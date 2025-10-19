@@ -7,10 +7,12 @@ WORKDIR /src
 COPY ["BusinessLogic/BusinessLogic.csproj", "BusinessLogic/"]
 COPY ["DataAccess/DataAccess.csproj", "DataAccess/"]
 COPY ["Shared/Shared.csproj", "Shared/"]
-COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj", "StudentRegisterationSystem.Server/"]
-COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Client/StudentRegisterationSystem.Client.csproj", "StudentRegisterationSystem.Client/"]
+COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj", "StudentRegisterationSystem/StudentRegisterationSystem.Server/"]
+COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Client/StudentRegisterationSystem.Client.csproj", "StudentRegisterationSystem/StudentRegisterationSystem.Client/"]
 
-RUN dotnet restore "StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj"
+# restore using the server project
+RUN dotnet restore "StudentRegisterationSystem/StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj"
+
 
 
 # Copy all files and build the project
