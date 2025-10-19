@@ -1,0 +1,28 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: StudentRegisterationSystem.Server/Dockerfile
+    container_name: student-registration-api
+    ports:
+      - "7179:80"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=UniversityDB;User Id=sa;Password=Strong!Pass123;TrustServerCertificate=True;
+    depends_on:
+      - db
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    environment:
+      SA_PASSWORD: "Strong!Pass123"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+
+volumes:
+  sql_data:
