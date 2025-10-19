@@ -4,15 +4,14 @@ WORKDIR /src
 
 # Copy solution and projects
 # Copy project files
-COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj", "StudentRegisterationSystem.Server/"]
 COPY ["BusinessLogic/BusinessLogic.csproj", "BusinessLogic/"]
 COPY ["DataAccess/DataAccess.csproj", "DataAccess/"]
 COPY ["Shared/Shared.csproj", "Shared/"]
+COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj", "StudentRegisterationSystem.Server/"]
 COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Client/StudentRegisterationSystem.Client.csproj", "StudentRegisterationSystem.Client/"]
 
-
-# Restore dependencies
 RUN dotnet restore "StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj"
+
 
 # Copy all files and build the project
 COPY . .
