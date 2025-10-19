@@ -3,11 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy solution and projects
-COPY ["StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj", "StudentRegisterationSystem.Server/"]
-COPY ["BusinessLogic/BusinessLogic.csproj", "BusinessLogic/"]
-COPY ["DataAccess/DataAccess.csproj", "DataAccess/"]
-COPY ["Shared/Shared.csproj", "Shared/"]
-COPY ["StudentRegisterationSystem.Client/StudentRegisterationSystem.Client.csproj", "StudentRegisterationSystem.Client/"]
+COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj", "StudentRegisterationSystem.Server/"]
+COPY ["StudentRegisterationSystem/BusinessLogic/BusinessLogic.csproj", "BusinessLogic/"]
+COPY ["StudentRegisterationSystem/DataAccess/DataAccess.csproj", "DataAccess/"]
+COPY ["StudentRegisterationSystem/Shared/Shared.csproj", "Shared/"]
+COPY ["StudentRegisterationSystem/StudentRegisterationSystem.Client/StudentRegisterationSystem.Client.csproj", "StudentRegisterationSystem.Client/"]
+
 
 # Restore dependencies
 RUN dotnet restore "StudentRegisterationSystem.Server/StudentRegisterationSystem.Server.csproj"
