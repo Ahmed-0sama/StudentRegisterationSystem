@@ -299,8 +299,6 @@ Contributions are welcome! Please follow these steps:
 
 - Follow C# coding conventions and .NET naming standards
 - Use async/await for database operations
-- Implement proper error handling and logging
-- Write XML documentation comments for public APIs
 - Use dependency injection for service resolution
 - Follow the repository pattern for data access
 - Keep business logic separate from data access and presentation
